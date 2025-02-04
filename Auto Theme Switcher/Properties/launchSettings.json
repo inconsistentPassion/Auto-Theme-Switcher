@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Auto Theme Switcher (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Auto Theme Switcher (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
