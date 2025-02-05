@@ -25,10 +25,25 @@ namespace AutoThemeSwitcher
         private DateTime sunrise;
         private DateTime sunset;
         private string location = "";
+        [DllImport("user32.dll")]
+        private static extern int GetSystemMetrics(int nIndex);
 
         public MainWindow()
         {
             this.InitializeComponent();
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+            appWindow.Resize(new Windows.Graphics.SizeInt32(420, 420)); // Set your desired width and height
+            var screenWidth = GetSystemMetrics(0);
+            var screenHeight = GetSystemMetrics(1);
+            var taskbarHeight = 40; // Approximate taskbar height
+            var windowWidth = 420;
+            var windowHeight = 420;
+            appWindow.Move(new Windows.Graphics.PointInt32(
+                screenWidth - windowWidth - 10,
+                screenHeight - windowHeight - taskbarHeight -30
+            ));
             TrySetMicaBackdrop();
             InitializeWindowStyle();
             InitializeThemeAutomation();
