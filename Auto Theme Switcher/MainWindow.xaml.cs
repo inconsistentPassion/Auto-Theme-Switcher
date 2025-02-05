@@ -2,18 +2,17 @@
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Diagnostics;
+using System.Drawing;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
-using System.IO;
-using System.Drawing;
-using System.Windows.Forms;
-
-
 
 namespace AutoThemeSwitcher
 {
@@ -31,6 +30,7 @@ namespace AutoThemeSwitcher
         private string location = "";
         [DllImport("user32.dll")]
         private static extern int GetSystemMetrics(int nIndex);
+        private bool isThemeChanging = false;
 
         public MainWindow()
         {
@@ -47,7 +47,7 @@ namespace AutoThemeSwitcher
             }
             trayIcon.Visible = true;
             trayIcon.Click += TrayIcon_Click;
-
+            InitializeTrayIconMenu();
             trayIcon.Visible = true;
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
@@ -95,7 +95,51 @@ namespace AutoThemeSwitcher
             timer.Tick += Timer_Tick;
             timer.Start();
         }
+        private void InitializeTrayIconMenu()
+        {
+            var flyout = new MenuFlyout();
 
+            var openItem = new MenuFlyoutItem
+            {
+                Text = "Open",
+                Icon = new FontIcon { Glyph = "\uE8A5" } // Windows 11 Open icon
+            };
+            openItem.Click += (s, e) => TrayIcon_Click(null, EventArgs.Empty);
+
+            var toggleThemeItem = new MenuFlyoutItem
+            {
+                Text = "Toggle Theme",
+                Icon = new FontIcon { Glyph = "\uE771" } // Windows 11 Theme icon
+            };
+            toggleThemeItem.Click += (s, e) => ToggleButton_Click(null, new RoutedEventArgs());
+
+            var exitItem = new MenuFlyoutItem
+            {
+                Text = "Exit",
+                Icon = new FontIcon { Glyph = "\uE8BB" } // Windows 11 Exit icon
+            };
+            exitItem.Click += (s, e) => QuitButton_Click(null, new RoutedEventArgs());
+
+            flyout.Items.Add(openItem);
+            flyout.Items.Add(toggleThemeItem);
+            flyout.Items.Add(new MenuFlyoutSeparator());
+            flyout.Items.Add(exitItem);
+
+            trayIcon.ContextMenuStrip = new ContextMenuStrip();
+            trayIcon.ContextMenuStrip.Opening += (s, e) =>
+            {
+                flyout.ShowAt((FrameworkElement)RootGrid);
+                e.Cancel = true; // Prevent the default context menu from showing
+            };
+
+            trayIcon.MouseUp += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    flyout.ShowAt((FrameworkElement)RootGrid);
+                }
+            };
+        }
         private void MainWindow_Closed(object sender, Microsoft.UI.Xaml.WindowEventArgs e)
         {
             e.Handled = true; // Cancel the close event
@@ -240,7 +284,6 @@ namespace AutoThemeSwitcher
 
         private async void SetTheme(ApplicationTheme theme)
         {
-            // First set the system theme via PowerShell
             var ps = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
@@ -250,21 +293,35 @@ namespace AutoThemeSwitcher
             };
             Process.Start(ps)?.WaitForExit();
 
-            // Broadcast theme change message
             const int HWND_BROADCAST = 0xffff;
             const int WM_SETTINGCHANGE = 0x001A;
             SendMessageTimeout(new IntPtr(HWND_BROADCAST), WM_SETTINGCHANGE, IntPtr.Zero, "ImmersiveColorSet", SendMessageTimeoutFlags.SMTO_NORMAL, 1000, out IntPtr _);
 
-            await Task.Delay(100);
+            await Task.Delay(500);
 
-            dispatcherQueue?.TryEnqueue(() =>
+            try
             {
-                if (global::Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
+                dispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
                 {
-                    global::Microsoft.UI.Xaml.Application.Current.RequestedTheme = theme;
-                    UpdateTitleBarButtonColors();
-                }
-            });
+                    if (Microsoft.UI.Xaml.Application.Current != null && Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
+                    {
+                        Microsoft.UI.Xaml.Application.Current.RequestedTheme = theme;
+                        UpdateTitleBarButtonColors();
+                    }
+                });
+            }
+            catch (COMException)
+            {
+                await Task.Delay(100);
+                dispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                {
+                    if (Microsoft.UI.Xaml.Application.Current != null && Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
+                    {
+                        Microsoft.UI.Xaml.Application.Current.RequestedTheme = theme;
+                        UpdateTitleBarButtonColors();
+                    }
+                });
+            }
         }
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -312,30 +369,37 @@ namespace AutoThemeSwitcher
         }
 
 
-        private void ToggleButton_Click(object sender, RoutedEventArgs e)
+        private async void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
+            if (isThemeChanging)
+            {
+                return; // Ignore clicks while theme is changing
+            }
+
             try
             {
+                isThemeChanging = true;
                 var currentTheme = GetCurrentTheme();
-                SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+                await Task.Run(async () =>
+                {
+                    SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+                    await Task.Delay(1000); // Cooldown period
+                });
                 UpdateUI();
             }
-            catch (COMException)
+            finally
             {
-                // Handle gracefully by retrying once
-                var currentTheme = GetCurrentTheme();
-                SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
-                UpdateUI();
+                isThemeChanging = false;
             }
         }
-
-        private void QuitButton_Click(object sender, RoutedEventArgs e)
+        private void QuitButton_Click(object sender, RoutedEventArgs e) // Updated to match the delegate signature
         {
-            trayIcon.Visible = false; // Hide the tray icon
-            global::System.Windows.Forms.Application.Exit();
+            timer?.Stop();
+            trayIcon.Visible = false;
+            trayIcon.Dispose();
+            Microsoft.UI.Xaml.Application.Current.Exit(); // Specify the namespace explicitly
         }
     }
-
     class WindowsSystemDispatcherQueueHelper
     {
         [StructLayout(LayoutKind.Sequential)]
