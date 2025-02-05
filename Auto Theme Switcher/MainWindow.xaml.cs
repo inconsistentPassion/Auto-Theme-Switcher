@@ -10,6 +10,10 @@ using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
 using System.IO;
+using System.Drawing;
+using System.Windows.Forms;
+
+
 
 namespace AutoThemeSwitcher
 {
@@ -19,6 +23,7 @@ namespace AutoThemeSwitcher
         private WindowsSystemDispatcherQueueHelper? wsdqHelper;
         private MicaController? micaController;
         private SystemBackdropConfiguration? backdropConfiguration;
+        private NotifyIcon trayIcon;
         private Microsoft.UI.Dispatching.DispatcherQueue? dispatcherQueue;
         private DispatcherTimer timer;
         private DateTime sunrise;
@@ -30,6 +35,28 @@ namespace AutoThemeSwitcher
         public MainWindow()
         {
             this.InitializeComponent();
+            trayIcon = new NotifyIcon();
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
+
+            if (File.Exists(iconPath))
+            {
+                try
+                {
+                    trayIcon.Icon = new Icon(iconPath);
+                }
+                catch (ArgumentException ex)
+                {
+                    // Handle the error, e.g., log it or use a default icon
+                    trayIcon.Icon = SystemIcons.Application;
+                }
+            }
+            else
+            {
+                // Handle the error, e.g., log it or use a default icon
+                trayIcon.Icon = SystemIcons.Application;
+            }
+
+            trayIcon.Visible = true;
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
             var appWindow = AppWindow.GetFromWindowId(windowId);
@@ -47,6 +74,7 @@ namespace AutoThemeSwitcher
             InitializeWindowStyle();
             timer = new DispatcherTimer(); // Initialize the timer here
             InitializeThemeAutomation();
+            this.Closed += MainWindow_Closed;
         }
 
         private void InitializeWindowStyle()
@@ -75,6 +103,24 @@ namespace AutoThemeSwitcher
             timer.Interval = TimeSpan.FromMinutes(1);
             timer.Tick += Timer_Tick;
             timer.Start();
+        }
+
+        private void MainWindow_Closed(object sender, Microsoft.UI.Xaml.WindowEventArgs e)
+        {
+            e.Handled = true; // Cancel the close event
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+            appWindow.Hide(); // Hide the window
+        }
+
+        private void TrayIcon_DoubleClick(object? sender, EventArgs e)
+        {
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+            appWindow.Show(); // Show the window
+            appWindow.SetPresenter(AppWindowPresenterKind.Default); // Restore the window state
         }
 
         private async Task GetLocationAsync()
@@ -169,7 +215,7 @@ namespace AutoThemeSwitcher
             ThemeStatusTextBlock.Text = $"🎨 Current theme: {(isDark ? "Dark" : "Light")}";
         }
 
-        private async void Timer_Tick(object sender, object e)
+        private async void Timer_Tick(object? sender, object? e)
         {
             var now = DateTime.Now;
             if (now.Date != sunrise.Date)
@@ -219,9 +265,9 @@ namespace AutoThemeSwitcher
             // Then update the application theme
             dispatcherQueue?.TryEnqueue(() =>
             {
-                if (Application.Current.RequestedTheme != theme)
+                if (global::Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
                 {
-                    Application.Current.RequestedTheme = theme;
+                    global::Microsoft.UI.Xaml.Application.Current.RequestedTheme = theme;
                     UpdateTitleBarButtonColors();
                 }
             });
@@ -230,7 +276,7 @@ namespace AutoThemeSwitcher
         private void UpdateTitleBarButtonColors()
         {
             var titleBar = AppWindow.TitleBar;
-            if (Application.Current.RequestedTheme == ApplicationTheme.Dark)
+            if (global::Microsoft.UI.Xaml.Application.Current.RequestedTheme == ApplicationTheme.Dark)
             {
                 titleBar.ButtonForegroundColor = Colors.White;
                 titleBar.ButtonHoverForegroundColor = Colors.White;
@@ -281,7 +327,8 @@ namespace AutoThemeSwitcher
 
         private void QuitButton_Click(object sender, RoutedEventArgs e)
         {
-            Application.Current.Exit();
+            trayIcon.Visible = false; // Hide the tray icon
+            global::System.Windows.Forms.Application.Exit();
         }
     }
 
