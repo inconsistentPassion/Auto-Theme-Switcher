@@ -50,7 +50,14 @@
                         Style="{StaticResource AccentButtonStyle}">
                     Toggle Theme
                 </Button>
-                <Button Click="QuitButton_Click">Quit</Button>
+                <Button x:Name="QuitButton" Click="QuitButton_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="14" Margin="0,0,8,0"/>
+                        <TextBlock Text="Quit"/>
+                    </StackPanel>
+                </Button>
+
+
             </StackPanel>
         </Grid>
     </Grid>

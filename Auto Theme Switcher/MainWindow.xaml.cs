@@ -37,24 +37,16 @@ namespace AutoThemeSwitcher
             this.InitializeComponent();
             trayIcon = new NotifyIcon();
             string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
-
             if (File.Exists(iconPath))
             {
-                try
-                {
-                    trayIcon.Icon = new Icon(iconPath);
-                }
-                catch (ArgumentException ex)
-                {
-                    // Handle the error, e.g., log it or use a default icon
-                    trayIcon.Icon = SystemIcons.Application;
-                }
+                trayIcon.Icon = new Icon(iconPath);
             }
             else
             {
-                // Handle the error, e.g., log it or use a default icon
                 trayIcon.Icon = SystemIcons.Application;
             }
+            trayIcon.Visible = true;
+            trayIcon.Click += TrayIcon_Click;
 
             trayIcon.Visible = true;
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -92,7 +84,6 @@ namespace AutoThemeSwitcher
                 UpdateTitleBarButtonColors();
             }
         }
-
         private async void InitializeThemeAutomation()
         {
             await GetLocationAsync();
@@ -114,7 +105,7 @@ namespace AutoThemeSwitcher
             appWindow.Hide(); // Hide the window
         }
 
-        private void TrayIcon_DoubleClick(object? sender, EventArgs e)
+        private void TrayIcon_Click(object? sender, EventArgs e)
         {
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
@@ -290,7 +281,7 @@ namespace AutoThemeSwitcher
 
         private bool TrySetMicaBackdrop()
         {
-            if (MicaController.IsSupported())
+            if (DesktopAcrylicController.IsSupported())
             {
                 wsdqHelper = new WindowsSystemDispatcherQueueHelper();
                 wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
@@ -298,15 +289,16 @@ namespace AutoThemeSwitcher
                 backdropConfiguration = new SystemBackdropConfiguration();
                 dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
-                micaController = new MicaController();
-                micaController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
-                micaController.SetSystemBackdropConfiguration(backdropConfiguration);
+                var acrylicController = new DesktopAcrylicController();
+                acrylicController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
+                acrylicController.SetSystemBackdropConfiguration(backdropConfiguration);
 
                 return true;
             }
 
             return false;
         }
+
 
         private void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
