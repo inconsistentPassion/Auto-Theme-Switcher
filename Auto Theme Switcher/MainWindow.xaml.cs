@@ -1,17 +1,14 @@
 ﻿using Microsoft.UI;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
-using WinRT;
-using System.Runtime.InteropServices;
-using Windows.Devices.Geolocation;
-using System.Net.Http;
-using System.Text.Json;
-using Windows.Storage;
-using Windows.UI.ViewManagement;
-using System.Diagnostics;
-using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
 using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Windows.Devices.Geolocation;
+using Windows.UI.ViewManagement;
+using WinRT;
 
 namespace AutoThemeSwitcher
 {
@@ -42,7 +39,7 @@ namespace AutoThemeSwitcher
             var windowHeight = 420;
             appWindow.Move(new Windows.Graphics.PointInt32(
                 screenWidth - windowWidth - 10,
-                screenHeight - windowHeight - taskbarHeight -30
+                screenHeight - windowHeight - taskbarHeight - 30
             ));
             TrySetMicaBackdrop();
             InitializeWindowStyle();
