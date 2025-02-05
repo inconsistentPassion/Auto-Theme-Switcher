@@ -10,9 +10,9 @@
         <!-- Title bar area -->
         <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
             <Image Source="/Assets/app.png" 
-           Width="16" 
-           Height="16" 
-           Margin="8,0,0,0" 
+           Width="26" 
+           Height="26" 
+           Margin="12,0,0,0" 
            HorizontalAlignment="Left"/>
             <TextBlock Text="Auto Theme Switcher" 
                      VerticalAlignment="Center"
@@ -21,7 +21,7 @@
         </Grid>
 
         <!-- Main content -->
-        <Grid Margin="24,48,24,24">
+        <Grid Margin="24,68,24,24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>

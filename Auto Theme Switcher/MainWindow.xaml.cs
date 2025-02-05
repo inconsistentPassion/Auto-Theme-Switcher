@@ -250,10 +250,13 @@ namespace AutoThemeSwitcher
             };
             Process.Start(ps)?.WaitForExit();
 
-            // Add a small delay to allow system to process the theme change
+            // Broadcast theme change message
+            const int HWND_BROADCAST = 0xffff;
+            const int WM_SETTINGCHANGE = 0x001A;
+            SendMessageTimeout(new IntPtr(HWND_BROADCAST), WM_SETTINGCHANGE, IntPtr.Zero, "ImmersiveColorSet", SendMessageTimeoutFlags.SMTO_NORMAL, 1000, out IntPtr _);
+
             await Task.Delay(100);
 
-            // Then update the application theme
             dispatcherQueue?.TryEnqueue(() =>
             {
                 if (global::Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
@@ -262,6 +265,15 @@ namespace AutoThemeSwitcher
                     UpdateTitleBarButtonColors();
                 }
             });
+        }
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessageTimeout(IntPtr hWnd, int Msg, IntPtr wParam, string lParam, SendMessageTimeoutFlags fuFlags, uint uTimeout, out IntPtr lpdwResult);
+
+        [Flags]
+        private enum SendMessageTimeoutFlags : uint
+        {
+            SMTO_NORMAL = 0x0,
         }
 
         private void UpdateTitleBarButtonColors()
