@@ -68,19 +68,19 @@ namespace AutoThemeSwitcher
             var lat = position.Coordinate.Point.Position.Latitude;
             var lon = position.Coordinate.Point.Position.Longitude;
 
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "AutoThemeSwitcher");
-            try
+            // Use Windows APIs to get location name
+            var basicGeoposition = new BasicGeoposition { Latitude = lat, Longitude = lon };
+            var geopoint = new Geopoint(basicGeoposition);
+            var civicAddress = await Windows.Services.Maps.MapLocationFinder.FindLocationsAtAsync(geopoint);
+
+            if (civicAddress?.Locations.Count > 0)
             {
-                var response = await client.GetStringAsync($"https://timeanddate.com/services/geolocator?x={lon}&y={lat}");
-                var locationData = JsonSerializer.Deserialize<JsonElement>(response);
-                location = $"{locationData.GetProperty("city").GetString()}, {locationData.GetProperty("country").GetString()}";
+                var address = civicAddress.Locations[0].Address;
+                location = $"{address.Town}, {address.Country}";
             }
-            catch (HttpRequestException e)
+            else
             {
-                // Log the exception or handle it accordingly
-                Console.WriteLine($"Request error: {e.Message}");
-                location = "Unknown location";
+                location = $"({lat:F2}, {lon:F2})";
             }
         }
 
@@ -91,22 +91,43 @@ namespace AutoThemeSwitcher
             var lat = position.Coordinate.Point.Position.Latitude;
             var lon = position.Coordinate.Point.Position.Longitude;
 
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.Add("User-Agent", "AutoThemeSwitcher");
-            var response = await client.GetAsync($"https://timeanddate.com/sun/api?x={lon}&y={lat}");
-            if (response.IsSuccessStatusCode)
-            {
-                var responseBody = await response.Content.ReadAsStringAsync();
-                var sunData = JsonSerializer.Deserialize<JsonElement>(responseBody);
+            (sunrise, sunset) = CalculateSunriseSunset(DateTime.Today, lat, lon);
+        }
 
-                sunrise = DateTime.Parse(sunData.GetProperty("sunrise").GetString()!);
-                sunset = DateTime.Parse(sunData.GetProperty("sunset").GetString()!);
-            }
-            else
-            {
-                // Handle the error appropriately
-                Console.WriteLine($"Error: {response.StatusCode}");
-            }
+        private (DateTime Sunrise, DateTime Sunset) CalculateSunriseSunset(DateTime date, double latitude, double longitude)
+        {
+            const double DEG_TO_RAD = Math.PI / 180.0;
+
+            // Day of year
+            int dayOfYear = date.DayOfYear;
+
+            // Convert latitude and longitude to radians
+            double latRad = latitude * DEG_TO_RAD;
+
+            // Solar declination
+            double declination = 23.45 * DEG_TO_RAD * Math.Sin(DEG_TO_RAD * (360.0 / 365.0) * (dayOfYear - 81));
+
+            // Hour angle
+            double hourAngle = Math.Acos(-Math.Tan(latRad) * Math.Tan(declination));
+
+            // Convert to hours, adjusting for longitude
+            double solarNoon = 12.0 - (longitude / 15.0);
+            double sunriseOffset = hourAngle * 180.0 / (15.0 * Math.PI);
+
+            // Calculate sunrise and sunset times
+            double sunriseHour = solarNoon - sunriseOffset;
+            double sunsetHour = solarNoon + sunriseOffset;
+
+            // Convert to local time
+            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(date);
+            DateTime sunriseTime = date.Date.AddHours(sunriseHour).Add(utcOffset);
+            DateTime sunsetTime = date.Date.AddHours(sunsetHour).Add(utcOffset);
+
+            // Apply twilight adjustment (civil twilight is approximately 30 minutes)
+            sunriseTime = sunriseTime.AddMinutes(-30);
+            sunsetTime = sunsetTime.AddMinutes(30);
+
+            return (sunriseTime, sunsetTime);
         }
 
         private void UpdateUI()
