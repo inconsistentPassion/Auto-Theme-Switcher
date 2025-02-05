@@ -201,8 +201,9 @@ namespace AutoThemeSwitcher
             return background.R == 0 ? ApplicationTheme.Dark : ApplicationTheme.Light;
         }
 
-        private void SetTheme(ApplicationTheme theme)
+        private async void SetTheme(ApplicationTheme theme)
         {
+            // First set the system theme via PowerShell
             var ps = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
@@ -210,13 +211,20 @@ namespace AutoThemeSwitcher
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
-            Process.Start(ps);
+            Process.Start(ps)?.WaitForExit();
 
-            if (Application.Current.RequestedTheme != theme)
+            // Add a small delay to allow system to process the theme change
+            await Task.Delay(100);
+
+            // Then update the application theme
+            dispatcherQueue?.TryEnqueue(() =>
             {
-                Application.Current.RequestedTheme = theme;
-                UpdateTitleBarButtonColors();
-            }
+                if (Application.Current.RequestedTheme != theme)
+                {
+                    Application.Current.RequestedTheme = theme;
+                    UpdateTitleBarButtonColors();
+                }
+            });
         }
 
         private void UpdateTitleBarButtonColors()
@@ -256,9 +264,19 @@ namespace AutoThemeSwitcher
 
         private void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            var currentTheme = GetCurrentTheme();
-            SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
-            UpdateUI();
+            try
+            {
+                var currentTheme = GetCurrentTheme();
+                SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+                UpdateUI();
+            }
+            catch (COMException)
+            {
+                // Handle gracefully by retrying once
+                var currentTheme = GetCurrentTheme();
+                SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+                UpdateUI();
+            }
         }
 
         private void QuitButton_Click(object sender, RoutedEventArgs e)
