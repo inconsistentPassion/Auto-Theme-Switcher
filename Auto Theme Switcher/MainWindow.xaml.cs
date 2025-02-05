@@ -147,7 +147,16 @@ namespace AutoThemeSwitcher
 
         private void UpdateUI()
         {
-            LocationTextBlock.Text = $"📍 {location}";
+            var hour = DateTime.Now.Hour;
+            string greeting = hour switch
+            {
+                >= 5 and < 12 => "👋 Good morning!",
+                >= 12 and < 17 => "👋 Good afternoon!",
+                >= 17 and < 22 => "👋 Good evening!",
+                _ => "🌙 Good night!"
+            };
+            LocationTextBlock.Text = greeting;
+
             SunriseTextBlock.Text = $"🌅 Sunrise: {sunrise.ToString("t")}";
             SunsetTextBlock.Text = $"🌇 Sunset: {sunset.ToString("t")}";
 
