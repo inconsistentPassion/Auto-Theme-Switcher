@@ -2,62 +2,51 @@
     x:Class="AutoThemeSwitcher.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Auto Theme Switcher">
-    <Grid Background="White" Padding="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
 
-        <!-- Header -->
-        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="24" Foreground="#0078D7" Text="&#xE706;" />
-            <TextBlock Text=" Auto Theme Switcher" FontFamily="Segoe UI Semibold" FontSize="20" VerticalAlignment="Center" Margin="10,0,0,0"/>
-        </StackPanel>
+    <Grid x:Name="RootGrid">
+        <!-- Title bar area -->
+        <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
+            <TextBlock Text="Auto Theme Switcher" 
+                     VerticalAlignment="Center"
+                     Margin="48,0,0,0"
+                     Style="{StaticResource CaptionTextBlockStyle}"/>
+        </Grid>
 
-        <!-- Location -->
-        <Expander Header="Location" Grid.Row="1" Margin="0,0,0,20">
-            <StackPanel Orientation="Horizontal" Padding="10">
-                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#0078D7" Text="&#xE707;" Margin="0,0,10,0"/>
-                <TextBlock x:Name="LocationTextBlock" FontFamily="Segoe UI" FontSize="14" Text="Detecting location..." VerticalAlignment="Center"/>
+        <!-- Main content -->
+        <Grid Margin="24,48,24,24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="12">
+                <TextBlock x:Name="LocationTextBlock" 
+                          Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <TextBlock x:Name="ThemeStatusTextBlock" 
+                          Style="{StaticResource BodyTextBlockStyle}"/>
+                <TextBlock x:Name="NextSwitchTextBlock" 
+                          Style="{StaticResource BodyTextBlockStyle}"/>
+                <TextBlock x:Name="SunriseTextBlock" 
+                          Style="{StaticResource BodyTextBlockStyle}"/>
+                <TextBlock x:Name="SunsetTextBlock" 
+                          Style="{StaticResource BodyTextBlockStyle}"/>
             </StackPanel>
-        </Expander>
 
-        <!-- Sunrise / Sunset -->
-        <Expander Header="Sunrise / Sunset Times" Grid.Row="2" Margin="0,0,0,20">
-            <StackPanel Padding="10">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#FFB900" Text="&#xE706;" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="SunriseTextBlock" FontFamily="Segoe UI" FontSize="14" Text="Sunrise: --:--" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#FF8C00" Text="&#xE708;" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="SunsetTextBlock" FontFamily="Segoe UI" FontSize="14" Text="Sunset: --:--" VerticalAlignment="Center"/>
-                </StackPanel>
+            <StackPanel Grid.Row="2" 
+                      Orientation="Horizontal" 
+                      HorizontalAlignment="Right" 
+                      Spacing="8">
+                <Button x:Name="ToggleButton" 
+                        Click="ToggleButton_Click" 
+                        Style="{StaticResource AccentButtonStyle}">
+                    Toggle Theme
+                </Button>
+                <Button Click="QuitButton_Click">Quit</Button>
             </StackPanel>
-        </Expander>
-
-        <!-- Current Status -->
-        <Expander Header="Current Status" Grid.Row="3" Margin="0,0,0,20">
-            <StackPanel Padding="10">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#0078D7" Text="&#xE706;" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="ThemeStatusTextBlock" FontFamily="Segoe UI" FontSize="14" Text="Current theme: Unknown" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#0078D7" Text="&#xE823;" Margin="0,0,10,0"/>
-                    <TextBlock x:Name="NextSwitchTextBlock" FontFamily="Segoe UI" FontSize="14" Text="Next switch: --:--" VerticalAlignment="Center"/>
-                </StackPanel>
-            </StackPanel>
-        </Expander>
-
-        <!-- Buttons -->
-        <StackPanel Orientation="Horizontal" Grid.Row="4" HorizontalAlignment="Center" Spacing="20">
-            <Button x:Name="ToggleButton" Content="⏯  Pause" Click="ToggleButton_Click" Width="100"/>
-            <Button Content="⏹  Quit" Click="QuitButton_Click" Width="100"/>
-        </StackPanel>
+        </Grid>
     </Grid>
 </Window>

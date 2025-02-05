@@ -1,250 +1,250 @@
-﻿using Microsoft.UI.Windowing;
+﻿using Microsoft.UI;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using System;
-using System.Globalization;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Windowing;
+using WinRT;
+using System.Runtime.InteropServices;
+using Windows.Devices.Geolocation;
 using System.Net.Http;
 using System.Text.Json;
-using System.Threading;
+using Windows.Storage;
+using Windows.UI.ViewManagement;
+using System.Diagnostics;
 using System.Threading.Tasks;
-using Microsoft.Win32;
-using Microsoft.UI;
-using Windows.Graphics;
+using System;
 
 namespace AutoThemeSwitcher
 {
     public sealed partial class MainWindow : Window
     {
-        private readonly CancellationTokenSource _cts = new();
-        private Timer? _monitorTimer;
-        private double _lat;
-        private double _lng;
-        private DateTime _sunrise;
-        private DateTime _sunset;
-        private bool _isMonitoring = true;
-        private readonly HttpClient _httpClient = new();
+        private WindowsSystemDispatcherQueueHelper? wsdqHelper;
+        private MicaController? micaController;
+        private SystemBackdropConfiguration? backdropConfiguration;
+        private Microsoft.UI.Dispatching.DispatcherQueue? dispatcherQueue;
+        private DispatcherTimer timer;
+        private DateTime sunrise;
+        private DateTime sunset;
+        private string location = "";
 
         public MainWindow()
         {
-            InitializeComponent();
-            SetupWindow();
-            _ = InitializeAsync(); // Start initialization
+            this.InitializeComponent();
+            TrySetMicaBackdrop();
+            InitializeWindowStyle();
+            InitializeThemeAutomation();
         }
 
-        private void SetupWindow()
+        private void InitializeWindowStyle()
         {
-            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
-            var appWindow = AppWindow.GetFromWindowId(windowId);
-
-            if (appWindow != null)
+            if (AppWindowTitleBar.IsCustomizationSupported())
             {
-                appWindow.Resize(new SizeInt32(400, 500));
-                Title = "Auto Theme Switcher";
+                var titleBar = AppWindow.TitleBar;
+                titleBar.ExtendsContentIntoTitleBar = true;
+                titleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
+                titleBar.ButtonBackgroundColor = Colors.Transparent;
+                titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+                titleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+                titleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+                UpdateTitleBarButtonColors();
             }
         }
 
-        private async Task InitializeAsync()
+        private async void InitializeThemeAutomation()
         {
-            try
-            {
-                await GetLocationAsync();
-                await GetSunriseSunsetAsync();
-                UpdateDisplay();
+            await GetLocationAsync();
+            await UpdateSunriseSunsetTimes();
+            UpdateUI();
 
-                // Use a state object to carry the cancellation token
-                var state = new TimerState { CancellationToken = _cts.Token };
-                _monitorTimer = new Timer(
-                    MonitorThemeCallback,
-                    state,
-                    TimeSpan.Zero,
-                    TimeSpan.FromMinutes(1)
-                );
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorDialogAsync(ex.Message);
-            }
-        }
-
-        private class TimerState
-        {
-            public CancellationToken CancellationToken { get; set; }
-        }
-
-        private void MonitorThemeCallback(object? state)
-        {
-            if (state is TimerState timerState && !timerState.CancellationToken.IsCancellationRequested)
-            {
-                _ = DispatcherQueue.TryEnqueue(() => MonitorTheme());
-            }
-        }
-
-        private void MonitorTheme()
-        {
-            if (!_isMonitoring) return;
-
-            try
-            {
-                var now = DateTime.Now;
-                var shouldBeDark = now < _sunrise || now > _sunset;
-                SetTheme(shouldBeDark);
-                UpdateDisplay();
-            }
-            catch (Exception)
-            {
-                // Log error if needed
-            }
-        }
-
-        private async Task ShowErrorDialogAsync(string message)
-        {
-            var errorDialog = new ContentDialog
-            {
-                XamlRoot = Content.XamlRoot,
-                Title = "Error",
-                Content = message,
-                CloseButtonText = "OK"
-            };
-            await errorDialog.ShowAsync();
+            timer = new DispatcherTimer();
+            timer.Interval = TimeSpan.FromMinutes(1);
+            timer.Tick += Timer_Tick;
+            timer.Start();
         }
 
         private async Task GetLocationAsync()
         {
+            var geolocator = new Geolocator();
+            var position = await geolocator.GetGeopositionAsync();
+            var lat = position.Coordinate.Point.Position.Latitude;
+            var lon = position.Coordinate.Point.Position.Longitude;
+
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "AutoThemeSwitcher");
             try
             {
-                var response = await _httpClient.GetAsync("http://ip-api.com/json/", _cts.Token);
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync(_cts.Token);
-
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                if (root.GetProperty("status").GetString() != "success")
-                    throw new Exception("Location service returned unsuccessful status");
-
-                _lat = root.GetProperty("lat").GetDouble();
-                _lng = root.GetProperty("lon").GetDouble();
-                var city = root.GetProperty("city").GetString();
-                var country = root.GetProperty("country").GetString();
-
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    LocationTextBlock.Text = $"{city}, {country}";
-                });
+                var response = await client.GetStringAsync($"https://timeanddate.com/services/geolocator?x={lon}&y={lat}");
+                var locationData = JsonSerializer.Deserialize<JsonElement>(response);
+                location = $"{locationData.GetProperty("city").GetString()}, {locationData.GetProperty("country").GetString()}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException e)
             {
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    LocationTextBlock.Text = "Location detection failed";
-                });
-                throw new Exception("Failed to get location: " + ex.Message);
+                // Log the exception or handle it accordingly
+                Console.WriteLine($"Request error: {e.Message}");
+                location = "Unknown location";
             }
         }
 
-        private async Task GetSunriseSunsetAsync()
+        private async Task UpdateSunriseSunsetTimes()
         {
-            try
+            var geolocator = new Geolocator();
+            var position = await geolocator.GetGeopositionAsync();
+            var lat = position.Coordinate.Point.Position.Latitude;
+            var lon = position.Coordinate.Point.Position.Longitude;
+
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "AutoThemeSwitcher");
+            var response = await client.GetAsync($"https://timeanddate.com/sun/api?x={lon}&y={lat}");
+            if (response.IsSuccessStatusCode)
             {
-                var url = $"https://api.sunrise-sunset.org/json?lat={_lat}&lng={_lng}&formatted=0";
-                var response = await _httpClient.GetAsync(url, _cts.Token);
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync(_cts.Token);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var sunData = JsonSerializer.Deserialize<JsonElement>(responseBody);
 
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                if (root.GetProperty("status").GetString() != "OK")
-                    throw new Exception("Sunrise/sunset service returned unsuccessful status");
-
-                var results = root.GetProperty("results");
-                _sunrise = DateTime.Parse(
-                    results.GetProperty("sunrise").GetString()!,
-                    null,
-                    DateTimeStyles.AdjustToUniversal
-                ).ToLocalTime();
-
-                _sunset = DateTime.Parse(
-                    results.GetProperty("sunset").GetString()!,
-                    null,
-                    DateTimeStyles.AdjustToUniversal
-                ).ToLocalTime();
-
-                DispatcherQueue.TryEnqueue(UpdateDisplay);
+                sunrise = DateTime.Parse(sunData.GetProperty("sunrise").GetString()!);
+                sunset = DateTime.Parse(sunData.GetProperty("sunset").GetString()!);
             }
-            catch (Exception ex)
+            else
             {
-                throw new Exception("Failed to get sunrise/sunset times: " + ex.Message);
+                // Handle the error appropriately
+                Console.WriteLine($"Error: {response.StatusCode}");
             }
         }
 
-        private DateTime CalculateNextSwitch()
+        private void UpdateUI()
+        {
+            LocationTextBlock.Text = $"📍 {location}";
+            SunriseTextBlock.Text = $"🌅 Sunrise: {sunrise.ToString("t")}";
+            SunsetTextBlock.Text = $"🌇 Sunset: {sunset.ToString("t")}";
+
+            var now = DateTime.Now;
+            var nextSwitch = now < sunrise ? sunrise : now < sunset ? sunset : sunrise.AddDays(1);
+            NextSwitchTextBlock.Text = $"⏱ Next switch at: {nextSwitch.ToString("t")}";
+
+            var isDark = now < sunrise || now >= sunset;
+            ThemeStatusTextBlock.Text = $"🎨 Current theme: {(isDark ? "Dark" : "Light")}";
+        }
+
+        private async void Timer_Tick(object sender, object e)
         {
             var now = DateTime.Now;
-            if (now < _sunrise)
-                return _sunrise;
-            if (now < _sunset)
-                return _sunset;
+            if (now.Date != sunrise.Date)
+            {
+                await UpdateSunriseSunsetTimes();
+            }
 
-            return _sunrise.AddDays(1);
+            UpdateUI();
+            UpdateTheme();
         }
 
-        private void UpdateDisplay()
+        private void UpdateTheme()
         {
-            SunriseTextBlock.Text = $"Sunrise: {_sunrise:HH:mm}";
-            SunsetTextBlock.Text = $"Sunset: {_sunset:HH:mm}";
-            NextSwitchTextBlock.Text = $"Next switch: {CalculateNextSwitch():HH:mm}";
+            var now = DateTime.Now;
+            var shouldBeDark = now < sunrise || now >= sunset;
+            var currentTheme = GetCurrentTheme();
+
+            if ((shouldBeDark && currentTheme != ApplicationTheme.Dark) ||
+                (!shouldBeDark && currentTheme != ApplicationTheme.Light))
+            {
+                SetTheme(shouldBeDark ? ApplicationTheme.Dark : ApplicationTheme.Light);
+            }
         }
 
-        private void SetTheme(bool darkMode)
+        private ApplicationTheme GetCurrentTheme()
         {
-            try
+            var settings = new UISettings();
+            var background = settings.GetColorValue(UIColorType.Background);
+            return background.R == 0 ? ApplicationTheme.Dark : ApplicationTheme.Light;
+        }
+
+        private void SetTheme(ApplicationTheme theme)
+        {
+            var ps = new ProcessStartInfo
             {
-                using var key = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-                    true);
+                FileName = "powershell.exe",
+                Arguments = $"-Command Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name SystemUsesLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+            Process.Start(ps);
+        }
 
-                if (key == null) return;
-
-                var value = darkMode ? 0 : 1;
-                var currentValue = key.GetValue("AppsUseLightTheme");
-
-                if (currentValue != null && (int)currentValue == value)
-                    return;
-
-                key.SetValue("AppsUseLightTheme", value, RegistryValueKind.DWord);
-                key.SetValue("SystemUseLightTheme", value, RegistryValueKind.DWord);
-
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    ThemeStatusTextBlock.Text = $"Current theme: {(darkMode ? "Dark" : "Light")}";
-                });
-            }
-            catch (Exception)
+        private void UpdateTitleBarButtonColors()
+        {
+            var titleBar = AppWindow.TitleBar;
+            if (Application.Current.RequestedTheme == ApplicationTheme.Dark)
             {
-                // Log error if needed
+                titleBar.ButtonForegroundColor = Colors.White;
+                titleBar.ButtonHoverForegroundColor = Colors.White;
             }
+            else
+            {
+                titleBar.ButtonForegroundColor = Colors.Black;
+                titleBar.ButtonHoverForegroundColor = Colors.Black;
+            }
+        }
+
+        private bool TrySetMicaBackdrop()
+        {
+            if (MicaController.IsSupported())
+            {
+                wsdqHelper = new WindowsSystemDispatcherQueueHelper();
+                wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
+
+                backdropConfiguration = new SystemBackdropConfiguration();
+                dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+                micaController = new MicaController();
+                micaController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
+                micaController.SetSystemBackdropConfiguration(backdropConfiguration);
+
+                return true;
+            }
+
+            return false;
         }
 
         private void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            _isMonitoring = !_isMonitoring;
-            ToggleButton.Content = _isMonitoring ? "⏯  Pause" : "⏯  Resume";
-
-            if (_monitorTimer == null) return;
-
-            if (_isMonitoring)
-                _monitorTimer.Change(TimeSpan.Zero, TimeSpan.FromMinutes(1));
-            else
-                _monitorTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            var currentTheme = GetCurrentTheme();
+            SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+            UpdateUI();
         }
 
         private void QuitButton_Click(object sender, RoutedEventArgs e)
         {
-            _cts.Cancel();
-            _monitorTimer?.Dispose();
             Application.Current.Exit();
+        }
+    }
+
+    class WindowsSystemDispatcherQueueHelper
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        struct DispatcherQueueOptions
+        {
+            internal int dwSize;
+            internal int threadType;
+            internal int apartmentType;
+        }
+
+        [DllImport("CoreMessaging.dll")]
+        private static extern int CreateDispatcherQueueController([In] DispatcherQueueOptions options, [In, Out, MarshalAs(UnmanagedType.IUnknown)] ref object dispatcherQueueController);
+
+        private object? m_dispatcherQueueController;
+        public void EnsureWindowsSystemDispatcherQueueController()
+        {
+            if (Windows.System.DispatcherQueue.GetForCurrentThread() != null)
+                return;
+
+            if (m_dispatcherQueueController == null)
+            {
+                DispatcherQueueOptions options;
+                options.dwSize = Marshal.SizeOf(typeof(DispatcherQueueOptions));
+                options.threadType = 2;    // DQTYPE_THREAD_CURRENT
+                options.apartmentType = 2;  // DQTAT_COM_STA
+
+                object dispatcherQueueController = new();
+                CreateDispatcherQueueController(options, ref dispatcherQueueController);
+                m_dispatcherQueueController = dispatcherQueueController;
+            }
         }
     }
 }
