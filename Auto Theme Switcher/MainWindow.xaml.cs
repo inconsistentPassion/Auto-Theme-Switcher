@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
+using System.IO;
 
 namespace AutoThemeSwitcher
 {
     public sealed partial class MainWindow : Window
     {
+        private const IconShowOptions showIconAndSystemMenu = IconShowOptions.ShowIconAndSystemMenu;
         private WindowsSystemDispatcherQueueHelper? wsdqHelper;
         private MicaController? micaController;
         private SystemBackdropConfiguration? backdropConfiguration;
@@ -43,6 +45,7 @@ namespace AutoThemeSwitcher
             ));
             TrySetMicaBackdrop();
             InitializeWindowStyle();
+            timer = new DispatcherTimer(); // Initialize the timer here
             InitializeThemeAutomation();
         }
 
@@ -53,6 +56,7 @@ namespace AutoThemeSwitcher
                 var titleBar = AppWindow.TitleBar;
                 titleBar.ExtendsContentIntoTitleBar = true;
                 titleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
+                titleBar.IconShowOptions = showIconAndSystemMenu;
                 titleBar.ButtonBackgroundColor = Colors.Transparent;
                 titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
                 titleBar.ButtonHoverBackgroundColor = Colors.Transparent;

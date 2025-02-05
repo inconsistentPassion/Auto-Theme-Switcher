@@ -9,6 +9,11 @@
     <Grid x:Name="RootGrid">
         <!-- Title bar area -->
         <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
+            <Image Source="/Assets/app.png" 
+           Width="16" 
+           Height="16" 
+           Margin="8,0,0,0" 
+           HorizontalAlignment="Left"/>
             <TextBlock Text="Auto Theme Switcher" 
                      VerticalAlignment="Center"
                      Margin="48,0,0,0"
