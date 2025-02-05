@@ -206,11 +206,17 @@ namespace AutoThemeSwitcher
             var ps = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-Command Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name SystemUsesLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}",
+                Arguments = $"-Command Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name SystemUsesLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}; Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name AppsUseLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}",
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
             Process.Start(ps);
+
+            if (Application.Current.RequestedTheme != theme)
+            {
+                Application.Current.RequestedTheme = theme;
+                UpdateTitleBarButtonColors();
+            }
         }
 
         private void UpdateTitleBarButtonColors()
