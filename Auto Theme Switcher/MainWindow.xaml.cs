@@ -20,7 +20,6 @@ namespace AutoThemeSwitcher
     {
         private const IconShowOptions showIconAndSystemMenu = IconShowOptions.ShowIconAndSystemMenu;
         private WindowsSystemDispatcherQueueHelper? wsdqHelper;
-        // Store the backdrop controller to reapply the configuration as needed.
         private DesktopAcrylicController? backdropController;
         private SystemBackdropConfiguration? backdropConfiguration;
         private NotifyIcon trayIcon;
@@ -43,15 +42,12 @@ namespace AutoThemeSwitcher
         {
             this.InitializeComponent();
 
+            trayIcon = new NotifyIcon();
             InitializeTrayIcon();
-
             SetWindowPositionAndSize();
-
-            // Try to set the system backdrop and save the controller instance.
             TrySetMicaBackdrop();
             InitializeWindowStyle();
 
-            // Initialize the timer for periodic theme checks.
             timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
             timer.Tick += Timer_Tick;
 
@@ -59,10 +55,6 @@ namespace AutoThemeSwitcher
 
             this.Closed += MainWindow_Closed;
         }
-
-        /// <summary>
-        /// Initialize the tray icon and its context menu.
-        /// </summary>
         private void InitializeTrayIcon()
         {
             trayIcon = new NotifyIcon();
@@ -72,10 +64,6 @@ namespace AutoThemeSwitcher
             trayIcon.Click += TrayIcon_Click;
             InitializeTrayIconMenu();
         }
-
-        /// <summary>
-        /// Sets the fixed window position and size. Disables resizing and maximizing.
-        /// </summary>
         private void SetWindowPositionAndSize()
         {
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -101,9 +89,6 @@ namespace AutoThemeSwitcher
             }
         }
 
-        /// <summary>
-        /// Customize the window title bar.
-        /// </summary>
         private void InitializeWindowStyle()
         {
             if (AppWindowTitleBar.IsCustomizationSupported())
@@ -144,14 +129,14 @@ namespace AutoThemeSwitcher
                 Text = "Toggle Theme",
                 Icon = new FontIcon { Glyph = "\uE771" }
             };
-            toggleThemeItem.Click += (s, e) => ToggleButton_Click(null, new RoutedEventArgs());
+            toggleThemeItem.Click += (s, e) => ToggleButton_Click(this, new RoutedEventArgs());
 
             var exitItem = new MenuFlyoutItem
             {
                 Text = "Exit",
                 Icon = new FontIcon { Glyph = "\uE8BB" }
             };
-            exitItem.Click += (s, e) => QuitButton_Click(null, new RoutedEventArgs());
+            exitItem.Click += (s, e) => QuitButton_Click(this, new RoutedEventArgs());
 
             flyout.Items.Add(openItem);
             flyout.Items.Add(toggleThemeItem);
@@ -323,10 +308,6 @@ namespace AutoThemeSwitcher
             // Assume dark theme if background color is black.
             return bgColor.R == 0 ? ApplicationTheme.Dark : ApplicationTheme.Light;
         }
-
-        /// <summary>
-        /// Sets the theme by updating registry keys via PowerShell and reapplying the backdrop.
-        /// </summary>
         private async void SetTheme(ApplicationTheme theme)
         {
             var ps = new ProcessStartInfo
@@ -377,10 +358,6 @@ namespace AutoThemeSwitcher
                 });
             }
         }
-
-        /// <summary>
-        /// Reapply the backdrop configuration so that the Mica (or Acrylic) effect remains active.
-        /// </summary>
         private void ReapplyBackdrop()
         {
             if (backdropController != null && backdropConfiguration != null)
@@ -413,11 +390,6 @@ namespace AutoThemeSwitcher
                 titleBar.ButtonHoverForegroundColor = Colors.Black;
             }
         }
-
-        /// <summary>
-        /// Sets up the system backdrop using DesktopAcrylicController (which provides a Mica/Acrylic effect).
-        /// </summary>
-        /// <returns>True if successfully applied; otherwise false.</returns>
         private bool TrySetMicaBackdrop()
         {
             if (DesktopAcrylicController.IsSupported())
@@ -467,8 +439,6 @@ namespace AutoThemeSwitcher
             Microsoft.UI.Xaml.Application.Current.Exit();
         }
     }
-
-    // Helper class to ensure a Windows system dispatcher queue exists.
     class WindowsSystemDispatcherQueueHelper
     {
         [StructLayout(LayoutKind.Sequential)]

@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
-
+    
     <Grid x:Name="RootGrid">
         <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
             <Image Source="/Assets/app.png" Width="26" Height="26" Margin="12,0,0,0" HorizontalAlignment="Left"/>
@@ -20,7 +20,7 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Background="{ThemeResource SystemAccentColor}" CornerRadius="8" Padding="12" Margin="0,0,0,12">
-                <TextBlock x:Name="LocationTextBlock" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White"/>
+                <TextBlock x:Name="LocationTextBlock" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White"/>
             </Border>
 
             <Grid Grid.Row="1" Margin="0,0,0,12">
@@ -41,8 +41,8 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="🌓" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Theme Status" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="ThemeStatusTextBlock" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock Text="Theme Status" FontSize="12" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
+                            <TextBlock x:Name="ThemeStatusTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -56,7 +56,7 @@
                         <TextBlock Text="⏱️" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Next Switch" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="NextSwitchTextBlock" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="NextSwitchTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -70,7 +70,7 @@
                         <TextBlock Text="🌅" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Sunrise" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="SunriseTextBlock" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="SunriseTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -84,7 +84,7 @@
                         <TextBlock Text="🌇" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Sunset" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="SunsetTextBlock" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="SunsetTextBlock"  FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
