@@ -19,7 +19,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="{ThemeResource SystemAccentColor}" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+            <Border Grid.Row="0" Background="{ThemeResource SystemAccentColor}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
                 <TextBlock x:Name="LocationTextBlock" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White"/>
             </Border>
 
@@ -33,7 +33,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Grid.Column="0" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="8" Padding="16" Margin="0,0,6,6">
+                <Border Grid.Row="0" Grid.Column="0" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,0,6,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -47,7 +47,7 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="0" Grid.Column="1" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="8" Padding="16" Margin="6,0,0,6">
+                <Border Grid.Row="0" Grid.Column="1" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,0,0,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -61,7 +61,7 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="0" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="8" Padding="16" Margin="0,6,6,0">
+                <Border Grid.Row="1" Grid.Column="0" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,6,6,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -75,7 +75,7 @@
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="1" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="8" Padding="16" Margin="6,6,0,0">
+                <Border Grid.Row="1" Grid.Column="1" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,6,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
