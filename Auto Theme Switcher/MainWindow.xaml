@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:winui="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
     
     <Grid x:Name="RootGrid">
@@ -90,11 +91,14 @@
                 </Border>
             </Grid>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-                <Button x:Name="ToggleButton" Click="ToggleButton_Click" Style="{StaticResource AccentButtonStyle}">Toggle Theme</Button>
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="32">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Automation:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ToggleSwitch x:Name="AutomationToggleSwitch" Toggled="AutomationToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>
+                </StackPanel>
                 <Button x:Name="QuitButton" Click="QuitButton_Click">
                     <StackPanel Orientation="Horizontal">
-                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="14" Margin="0,0,8,0"/>
+                        <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="13" Margin="0,0,8,0"/>
                         <TextBlock Text="Quit"/>
                     </StackPanel>
                 </Button>

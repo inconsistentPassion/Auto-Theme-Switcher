@@ -37,6 +37,7 @@ namespace AutoThemeSwitcher
         private static extern int GetSystemMetrics(int nIndex);
 
         private bool isThemeChanging = false;
+        private bool isAutomationEnabled = false;
 
         public MainWindow()
         {
@@ -55,6 +56,7 @@ namespace AutoThemeSwitcher
 
             this.Closed += MainWindow_Closed;
         }
+
         private void InitializeTrayIcon()
         {
             trayIcon = new NotifyIcon();
@@ -64,6 +66,7 @@ namespace AutoThemeSwitcher
             trayIcon.Click += TrayIcon_Click;
             InitializeTrayIconMenu();
         }
+
         private void SetWindowPositionAndSize()
         {
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -146,7 +149,7 @@ namespace AutoThemeSwitcher
             trayIcon.ContextMenuStrip = new ContextMenuStrip();
             trayIcon.ContextMenuStrip.Opening += (s, e) =>
             {
-                flyout.ShowAt((FrameworkElement)RootGrid);
+                flyout.ShowAt(RootGrid);
                 e.Cancel = true;
             };
 
@@ -154,7 +157,7 @@ namespace AutoThemeSwitcher
             {
                 if (e.Button == MouseButtons.Right)
                 {
-                    flyout.ShowAt((FrameworkElement)RootGrid);
+                    flyout.ShowAt(RootGrid);
                 }
             };
         }
@@ -279,13 +282,16 @@ namespace AutoThemeSwitcher
 
         private async void Timer_Tick(object? sender, object? e)
         {
-            // Update sunrise/sunset times if a new day has started.
-            if (DateTime.Today != sunrise.Date)
+            if (isAutomationEnabled)
             {
-                await UpdateSunriseSunsetTimesAsync();
+                // Update sunrise/sunset times if a new day has started.
+                if (DateTime.Today != sunrise.Date)
+                {
+                    await UpdateSunriseSunsetTimesAsync();
+                }
+                UpdateUI();
+                UpdateTheme();
             }
-            UpdateUI();
-            UpdateTheme();
         }
 
         private void UpdateTheme()
@@ -308,6 +314,7 @@ namespace AutoThemeSwitcher
             // Assume dark theme if background color is black.
             return bgColor.R == 0 ? ApplicationTheme.Dark : ApplicationTheme.Light;
         }
+
         private async void SetTheme(ApplicationTheme theme)
         {
             var ps = new ProcessStartInfo
@@ -358,6 +365,7 @@ namespace AutoThemeSwitcher
                 });
             }
         }
+
         private void ReapplyBackdrop()
         {
             if (backdropController != null && backdropConfiguration != null)
@@ -390,6 +398,7 @@ namespace AutoThemeSwitcher
                 titleBar.ButtonHoverForegroundColor = Colors.Black;
             }
         }
+
         private bool TrySetMicaBackdrop()
         {
             if (DesktopAcrylicController.IsSupported())
@@ -437,6 +446,23 @@ namespace AutoThemeSwitcher
             trayIcon.Visible = false;
             trayIcon.Dispose();
             Microsoft.UI.Xaml.Application.Current.Exit();
+        }
+
+        private void AutomationToggleSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            isAutomationEnabled = ((ToggleSwitch)sender).IsOn;
+            if (isAutomationEnabled)
+            {
+                // Enable theme switching automation
+                timer.Start();
+                UpdateUI();
+                UpdateTheme();
+            }
+            else
+            {
+                // Disable theme switching automation
+                timer.Stop();
+            }
         }
     }
     class WindowsSystemDispatcherQueueHelper

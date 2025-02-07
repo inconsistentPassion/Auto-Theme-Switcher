@@ -8,10 +8,16 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+
+            <Style x:Key="AccentToggleSwitchStyle" TargetType="ToggleSwitch">
+                <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
+                <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="{ThemeResource ToggleButtonBorderThemeThickness}"/>
+                <Setter Property="Padding" Value="{ThemeResource ButtonPadding}"/>
+            </Style>
+
         </ResourceDictionary>
     </Application.Resources>
-    
 </Application>
