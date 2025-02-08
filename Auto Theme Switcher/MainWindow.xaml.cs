@@ -1,119 +1,95 @@
-﻿using Microsoft.UI;
-using Microsoft.UI.Composition.SystemBackdrops;
-using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using WinRT;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
-using WinRT;
 
 namespace AutoThemeSwitcher
 {
     public sealed partial class MainWindow : Window
     {
-        private const IconShowOptions showIconAndSystemMenu = IconShowOptions.ShowIconAndSystemMenu;
-        private WindowsSystemDispatcherQueueHelper? wsdqHelper;
-        private DesktopAcrylicController? backdropController;
-        private SystemBackdropConfiguration? backdropConfiguration;
-        private NotifyIcon trayIcon;
-        private Microsoft.UI.Dispatching.DispatcherQueue? dispatcherQueue;
-        private DispatcherTimer timer;
-        private DateTime sunrise;
-        private DateTime sunset;
-        private string location = "";
+        #region Fields
 
-        // Cache geolocation values to avoid duplicate lookups
-        private double? cachedLatitude;
-        private double? cachedLongitude;
+        private const IconShowOptions ShowIconAndSystemMenu = IconShowOptions.ShowIconAndSystemMenu;
+
+        private WindowsSystemDispatcherQueueHelper? _wsdqHelper;
+        private DesktopAcrylicController? _backdropController;
+        private SystemBackdropConfiguration? _backdropConfiguration;
+        private DispatcherQueue? _dispatcherQueue;
+        private readonly DispatcherTimer _timer;
+
+        private NotifyIcon _trayIcon;
+
+        private DateTime _sunrise;
+        private DateTime _sunset;
+        private string _location = string.Empty;
+
+        // Cached geolocation values
+        private double? _cachedLatitude;
+        private double? _cachedLongitude;
+
+        private bool _isThemeChanging;
+        private bool _isAutomationEnabled;
+
+        #endregion
+
+        #region Win32 Interop
 
         [DllImport("user32.dll")]
         private static extern int GetSystemMetrics(int nIndex);
 
-        private bool isThemeChanging = false;
-        private bool isAutomationEnabled = false;
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessageTimeout(IntPtr hWnd, int Msg, IntPtr wParam, string lParam,
+            SendMessageTimeoutFlags fuFlags, uint uTimeout, out IntPtr lpdwResult);
+
+        [Flags]
+        private enum SendMessageTimeoutFlags : uint
+        {
+            SMTO_NORMAL = 0x0,
+        }
+
+        #endregion
 
         public MainWindow()
         {
             this.InitializeComponent();
 
-            trayIcon = new NotifyIcon();
             InitializeTrayIcon();
             SetWindowPositionAndSize();
             TrySetMicaBackdrop();
             InitializeWindowStyle();
 
-            timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
-            timer.Tick += Timer_Tick;
+            // Initialize automation timer (ticks every minute)
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+            _timer.Tick += Timer_Tick;
 
+            // Initialize theme automation (asynchronously)
             _ = InitializeThemeAutomationAsync();
 
             this.Closed += MainWindow_Closed;
         }
 
+        #region Initialization Methods
+
         private void InitializeTrayIcon()
         {
-            trayIcon = new NotifyIcon();
+            _trayIcon = new NotifyIcon();
             string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico");
-            trayIcon.Icon = File.Exists(iconPath) ? new Icon(iconPath) : SystemIcons.Application;
-            trayIcon.Visible = true;
-            trayIcon.Click += TrayIcon_Click;
+            _trayIcon.Icon = File.Exists(iconPath) ? new Icon(iconPath) : SystemIcons.Application;
+            _trayIcon.Visible = true;
+            _trayIcon.Click += TrayIcon_Click;
             InitializeTrayIconMenu();
-        }
-
-        private void SetWindowPositionAndSize()
-        {
-            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
-            var appWindow = AppWindow.GetFromWindowId(windowId);
-            const int windowDimensions = 520;
-            appWindow.Resize(new Windows.Graphics.SizeInt32(windowDimensions, windowDimensions));
-
-            // Position the window near the bottom-right of the primary screen.
-            var screenWidth = GetSystemMetrics(0);
-            var screenHeight = GetSystemMetrics(1);
-            int taskbarHeight = 40; // Approximation
-            appWindow.Move(new Windows.Graphics.PointInt32(
-                screenWidth - windowDimensions - 10,
-                screenHeight - windowDimensions - taskbarHeight - 30
-            ));
-
-            // Disable resizing and remove the maximize button.
-            if (appWindow.Presenter is OverlappedPresenter presenter)
-            {
-                presenter.IsResizable = false;
-                presenter.IsMaximizable = false;
-            }
-        }
-
-        private void InitializeWindowStyle()
-        {
-            if (AppWindowTitleBar.IsCustomizationSupported())
-            {
-                var titleBar = AppWindow.TitleBar;
-                titleBar.ExtendsContentIntoTitleBar = true;
-                titleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
-                titleBar.IconShowOptions = showIconAndSystemMenu;
-                titleBar.ButtonBackgroundColor = Colors.Transparent;
-                titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-                titleBar.ButtonHoverBackgroundColor = Colors.Transparent;
-                titleBar.ButtonPressedBackgroundColor = Colors.Transparent;
-                UpdateTitleBarButtonColors();
-            }
-        }
-
-        private async Task InitializeThemeAutomationAsync()
-        {
-            await GetAndCacheLocationAsync();
-            await UpdateSunriseSunsetTimesAsync();
-            UpdateUI();
-            timer.Start();
         }
 
         private void InitializeTrayIconMenu()
@@ -146,14 +122,15 @@ namespace AutoThemeSwitcher
             flyout.Items.Add(new MenuFlyoutSeparator());
             flyout.Items.Add(exitItem);
 
-            trayIcon.ContextMenuStrip = new ContextMenuStrip();
-            trayIcon.ContextMenuStrip.Opening += (s, e) =>
+            // Use the tray icon's ContextMenuStrip to show the flyout.
+            _trayIcon.ContextMenuStrip = new ContextMenuStrip();
+            _trayIcon.ContextMenuStrip.Opening += (s, e) =>
             {
                 flyout.ShowAt(RootGrid);
                 e.Cancel = true;
             };
 
-            trayIcon.MouseUp += (s, e) =>
+            _trayIcon.MouseUp += (s, e) =>
             {
                 if (e.Button == MouseButtons.Right)
                 {
@@ -162,7 +139,80 @@ namespace AutoThemeSwitcher
             };
         }
 
-        private void MainWindow_Closed(object sender, Microsoft.UI.Xaml.WindowEventArgs e)
+        private void SetWindowPositionAndSize()
+        {
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+
+            const int windowDimensions = 520;
+            appWindow.Resize(new Windows.Graphics.SizeInt32(windowDimensions, windowDimensions));
+
+            // Position the window near the bottom-right of the primary screen.
+            int screenWidth = GetSystemMetrics(0);
+            int screenHeight = GetSystemMetrics(1);
+            int taskbarHeight = 40; // Approximation
+
+            appWindow.Move(new Windows.Graphics.PointInt32(
+                screenWidth - windowDimensions - 10,
+                screenHeight - windowDimensions - taskbarHeight - 30
+            ));
+
+            // Disable resizing and remove the maximize button.
+            if (appWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsResizable = false;
+                presenter.IsMaximizable = false;
+            }
+        }
+
+        private void InitializeWindowStyle()
+        {
+            if (AppWindowTitleBar.IsCustomizationSupported())
+            {
+                var titleBar = AppWindow.TitleBar;
+                titleBar.ExtendsContentIntoTitleBar = true;
+                titleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
+                titleBar.IconShowOptions = ShowIconAndSystemMenu;
+                titleBar.ButtonBackgroundColor = Colors.Transparent;
+                titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+                titleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+                titleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+                UpdateTitleBarButtonColors();
+            }
+        }
+
+        private async Task InitializeThemeAutomationAsync()
+        {
+            await GetAndCacheLocationAsync();
+            await UpdateSunriseSunsetTimesAsync();
+            UpdateUI();
+            _timer.Start();
+        }
+
+        private bool TrySetMicaBackdrop()
+        {
+            if (DesktopAcrylicController.IsSupported())
+            {
+                _wsdqHelper = new WindowsSystemDispatcherQueueHelper();
+                _wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
+
+                _backdropConfiguration = new SystemBackdropConfiguration();
+                _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+
+                _backdropController = new DesktopAcrylicController();
+                _backdropController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
+                _backdropController.SetSystemBackdropConfiguration(_backdropConfiguration);
+                return true;
+            }
+            return false;
+        }
+
+        #endregion
+
+        #region Event Handlers
+
+        private void MainWindow_Closed(object sender, WindowEventArgs e)
         {
             // Instead of closing, hide the window.
             e.Handled = true;
@@ -181,36 +231,104 @@ namespace AutoThemeSwitcher
             appWindow.SetPresenter(AppWindowPresenterKind.Default);
         }
 
+        private async void Timer_Tick(object? sender, object? e)
+        {
+            if (_isAutomationEnabled)
+            {
+                // If a new day has started, update sunrise/sunset times.
+                if (DateTime.Today != _sunrise.Date)
+                {
+                    await UpdateSunriseSunsetTimesAsync();
+                }
+                UpdateUI();
+                UpdateTheme();
+            }
+        }
+
+        private async void ToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isThemeChanging)
+            {
+                return; // Prevent duplicate toggles
+            }
+
+            _isThemeChanging = true;
+            try
+            {
+                var currentTheme = GetCurrentTheme();
+                // Toggle between dark and light themes.
+                await Task.Run(async () =>
+                {
+                    SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
+                    await Task.Delay(1000); // Cooldown period
+                });
+                UpdateUI();
+            }
+            finally
+            {
+                _isThemeChanging = false;
+            }
+        }
+
+        private void QuitButton_Click(object sender, RoutedEventArgs e)
+        {
+            _timer.Stop();
+            _trayIcon.Visible = false;
+            _trayIcon.Dispose();
+            Microsoft.UI.Xaml.Application.Current.Exit();
+        }
+
+        private void AutomationToggleSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            _isAutomationEnabled = ((ToggleSwitch)sender).IsOn;
+            if (_isAutomationEnabled)
+            {
+                _timer.Start();
+                UpdateUI();
+                UpdateTheme();
+            }
+            else
+            {
+                _timer.Stop();
+            }
+        }
+
+        #endregion
+
+        #region Theme and UI Update Methods
+
         private async Task GetAndCacheLocationAsync()
         {
             try
             {
                 var geolocator = new Geolocator();
                 var position = await geolocator.GetGeopositionAsync();
-                cachedLatitude = position.Coordinate.Point.Position.Latitude;
-                cachedLongitude = position.Coordinate.Point.Position.Longitude;
+
+                _cachedLatitude = position.Coordinate.Point.Position.Latitude;
+                _cachedLongitude = position.Coordinate.Point.Position.Longitude;
 
                 var basicPosition = new BasicGeoposition
                 {
-                    Latitude = cachedLatitude.Value,
-                    Longitude = cachedLongitude.Value
+                    Latitude = _cachedLatitude.Value,
+                    Longitude = _cachedLongitude.Value
                 };
+
                 var geopoint = new Geopoint(basicPosition);
                 var civicAddress = await Windows.Services.Maps.MapLocationFinder.FindLocationsAtAsync(geopoint);
 
                 if (civicAddress?.Locations.Count > 0)
                 {
                     var address = civicAddress.Locations[0].Address;
-                    location = $"{address.Town}, {address.Country}";
+                    _location = $"{address.Town}, {address.Country}";
                 }
                 else
                 {
-                    location = $"({cachedLatitude:F2}, {cachedLongitude:F2})";
+                    _location = $"({_cachedLatitude:F2}, {_cachedLongitude:F2})";
                 }
             }
             catch (Exception ex)
             {
-                location = "Unknown location";
+                _location = "Unknown location";
                 Debug.WriteLine($"Error fetching location: {ex.Message}");
             }
         }
@@ -219,16 +337,16 @@ namespace AutoThemeSwitcher
         {
             try
             {
-                if (cachedLatitude.HasValue && cachedLongitude.HasValue)
+                if (_cachedLatitude.HasValue && _cachedLongitude.HasValue)
                 {
-                    (sunrise, sunset) = CalculateSunriseSunset(DateTime.Today, cachedLatitude.Value, cachedLongitude.Value);
+                    (_sunrise, _sunset) = CalculateSunriseSunset(DateTime.Today, _cachedLatitude.Value, _cachedLongitude.Value);
                 }
                 else
                 {
                     await GetAndCacheLocationAsync();
-                    if (cachedLatitude.HasValue && cachedLongitude.HasValue)
+                    if (_cachedLatitude.HasValue && _cachedLongitude.HasValue)
                     {
-                        (sunrise, sunset) = CalculateSunriseSunset(DateTime.Today, cachedLatitude.Value, cachedLongitude.Value);
+                        (_sunrise, _sunset) = CalculateSunriseSunset(DateTime.Today, _cachedLatitude.Value, _cachedLongitude.Value);
                     }
                 }
             }
@@ -240,23 +358,58 @@ namespace AutoThemeSwitcher
 
         private (DateTime Sunrise, DateTime Sunset) CalculateSunriseSunset(DateTime date, double latitude, double longitude)
         {
-            const double DEG_TO_RAD = Math.PI / 180.0;
-            int dayOfYear = date.DayOfYear;
-            double latRad = latitude * DEG_TO_RAD;
-            double declination = 23.45 * DEG_TO_RAD * Math.Sin(DEG_TO_RAD * (360.0 / 365.0) * (dayOfYear - 81));
-            double hourAngle = Math.Acos(-Math.Tan(latRad) * Math.Tan(declination));
-            double solarNoon = 12.0 - (longitude / 15.0);
-            double sunriseOffset = hourAngle * 180.0 / (15.0 * Math.PI);
-            double sunriseHour = solarNoon - sunriseOffset;
-            double sunsetHour = solarNoon + sunriseOffset;
-            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(date);
+            try
+            {
+                DateTime localNoon = new DateTime(date.Year, date.Month, date.Day, 12, 0, 0, DateTimeKind.Local);
+                DateTime utcNoon = localNoon.ToUniversalTime();
+                int dayOfYear = utcNoon.DayOfYear;
 
-            // Adjust 30 minutes for civil twilight.
-            DateTime sunriseTime = date.Date.AddHours(sunriseHour).Add(utcOffset).AddMinutes(-30);
-            DateTime sunsetTime = date.Date.AddHours(sunsetHour).Add(utcOffset).AddMinutes(30);
-            return (sunriseTime, sunsetTime);
+                double fractionalYear = (2 * Math.PI / 365) * (dayOfYear - 1 + (utcNoon.Hour - 12) / 24.0);
+
+                double eqTime = 229.18 * (
+                     0.000075
+                   + 0.001868 * Math.Cos(fractionalYear)
+                   - 0.032077 * Math.Sin(fractionalYear)
+                   - 0.014615 * Math.Cos(2 * fractionalYear)
+                   - 0.040849 * Math.Sin(2 * fractionalYear));
+
+                double declination = 0.006918
+                   - 0.399912 * Math.Cos(fractionalYear)
+                   + 0.070257 * Math.Sin(fractionalYear)
+                   - 0.006758 * Math.Cos(2 * fractionalYear)
+                   + 0.000907 * Math.Sin(2 * fractionalYear)
+                   - 0.002697 * Math.Cos(3 * fractionalYear)
+                   + 0.00148 * Math.Sin(3 * fractionalYear);
+
+                double latRad = latitude * Math.PI / 180.0;
+
+                double zenithRad = 90.833 * Math.PI / 180.0;
+
+                double cosHA = (Math.Cos(zenithRad) - Math.Sin(latRad) * Math.Sin(declination))
+                             / (Math.Cos(latRad) * Math.Cos(declination));
+
+                if (cosHA < -1 || cosHA > 1)
+                    return (DateTime.MinValue, DateTime.MinValue);
+
+                double hourAngleDeg = Math.Acos(cosHA) * 180.0 / Math.PI;
+
+                double sunriseMinutesUTC = 720 - 4 * (longitude + hourAngleDeg) - eqTime;
+                double sunsetMinutesUTC = 720 - 4 * (longitude - hourAngleDeg) - eqTime;
+
+                DateTime sunriseUtc = utcNoon.Date.AddMinutes(sunriseMinutesUTC);
+                DateTime sunsetUtc = utcNoon.Date.AddMinutes(sunsetMinutesUTC);
+
+                DateTime sunrise = TimeZoneInfo.ConvertTimeFromUtc(sunriseUtc, TimeZoneInfo.Local);
+                DateTime sunset = TimeZoneInfo.ConvertTimeFromUtc(sunsetUtc, TimeZoneInfo.Local);
+
+                return (sunrise, sunset);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error calculating sunrise/sunset: {ex.Message}");
+                return (DateTime.MinValue, DateTime.MinValue);
+            }
         }
-
         private void UpdateUI()
         {
             int hour = DateTime.Now.Hour;
@@ -268,36 +421,23 @@ namespace AutoThemeSwitcher
                 _ => "🌙 Good night!"
             };
 
+            // Update text blocks (assumed to be defined in XAML)
             LocationTextBlock.Text = greeting;
-            SunriseTextBlock.Text = $"{sunrise:t}";
-            SunsetTextBlock.Text = $"{sunset:t}";
+            SunriseTextBlock.Text = $"{_sunrise:t}";
+            SunsetTextBlock.Text = $"{_sunset:t}";
 
             DateTime now = DateTime.Now;
-            DateTime nextSwitch = now < sunrise ? sunrise : now < sunset ? sunset : sunrise.AddDays(1);
+            DateTime nextSwitch = now < _sunrise ? _sunrise : now < _sunset ? _sunset : _sunrise.AddDays(1);
             NextSwitchTextBlock.Text = $"{nextSwitch:t}";
 
-            bool isDark = now < sunrise || now >= sunset;
-            ThemeStatusTextBlock.Text = $"{(isDark ? "Dark" : "Light")}";
-        }
-
-        private async void Timer_Tick(object? sender, object? e)
-        {
-            if (isAutomationEnabled)
-            {
-                // Update sunrise/sunset times if a new day has started.
-                if (DateTime.Today != sunrise.Date)
-                {
-                    await UpdateSunriseSunsetTimesAsync();
-                }
-                UpdateUI();
-                UpdateTheme();
-            }
+            bool isDark = now < _sunrise || now >= _sunset;
+            ThemeStatusTextBlock.Text = isDark ? "Dark" : "Light";
         }
 
         private void UpdateTheme()
         {
             DateTime now = DateTime.Now;
-            bool shouldBeDark = now < sunrise || now >= sunset;
+            bool shouldBeDark = now < _sunrise || now >= _sunset;
             ApplicationTheme currentTheme = GetCurrentTheme();
 
             if ((shouldBeDark && currentTheme != ApplicationTheme.Dark) ||
@@ -317,28 +457,30 @@ namespace AutoThemeSwitcher
 
         private async void SetTheme(ApplicationTheme theme)
         {
-            var ps = new ProcessStartInfo
+            // Use PowerShell to update registry settings for theme.
+            var psInfo = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
-                Arguments = $"-Command " +
-                            $"Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name SystemUsesLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}; " +
-                            $"Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name AppsUseLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}",
+                Arguments =
+                    $"-Command Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name SystemUsesLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}; " +
+                    $"Set-ItemProperty -Path HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize -Name AppsUseLightTheme -Value {(theme == ApplicationTheme.Light ? 1 : 0)}",
                 CreateNoWindow = true,
                 UseShellExecute = false
             };
-            Process.Start(ps)?.WaitForExit();
+            Process.Start(psInfo)?.WaitForExit();
 
             // Broadcast the setting change.
             const int HWND_BROADCAST = 0xffff;
             const int WM_SETTINGCHANGE = 0x001A;
             SendMessageTimeout(new IntPtr(HWND_BROADCAST), WM_SETTINGCHANGE, IntPtr.Zero, "ImmersiveColorSet",
-                SendMessageTimeoutFlags.SMTO_NORMAL, 1000, out IntPtr _);
+                SendMessageTimeoutFlags.SMTO_NORMAL, 1000, out _);
 
             await Task.Delay(500);
 
+            // Update the application's requested theme.
             try
             {
-                dispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                _dispatcherQueue?.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                 {
                     if (Microsoft.UI.Xaml.Application.Current != null &&
                         Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
@@ -351,9 +493,9 @@ namespace AutoThemeSwitcher
             }
             catch (COMException)
             {
-                // In case of COM exceptions, try again after a short delay.
-                Task.Delay(100).Wait();
-                dispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Normal, () =>
+                // Try again after a short delay if a COM exception occurs.
+                await Task.Delay(100);
+                _dispatcherQueue?.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                 {
                     if (Microsoft.UI.Xaml.Application.Current != null &&
                         Microsoft.UI.Xaml.Application.Current.RequestedTheme != theme)
@@ -368,20 +510,10 @@ namespace AutoThemeSwitcher
 
         private void ReapplyBackdrop()
         {
-            if (backdropController != null && backdropConfiguration != null)
+            if (_backdropController != null && _backdropConfiguration != null)
             {
-                backdropController.SetSystemBackdropConfiguration(backdropConfiguration);
+                _backdropController.SetSystemBackdropConfiguration(_backdropConfiguration);
             }
-        }
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr SendMessageTimeout(IntPtr hWnd, int Msg, IntPtr wParam, string lParam,
-            SendMessageTimeoutFlags fuFlags, uint uTimeout, out IntPtr lpdwResult);
-
-        [Flags]
-        private enum SendMessageTimeoutFlags : uint
-        {
-            SMTO_NORMAL = 0x0,
         }
 
         private void UpdateTitleBarButtonColors()
@@ -399,76 +531,16 @@ namespace AutoThemeSwitcher
             }
         }
 
-        private bool TrySetMicaBackdrop()
-        {
-            if (DesktopAcrylicController.IsSupported())
-            {
-                wsdqHelper = new WindowsSystemDispatcherQueueHelper();
-                wsdqHelper.EnsureWindowsSystemDispatcherQueueController();
-
-                backdropConfiguration = new SystemBackdropConfiguration();
-                dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-
-                backdropController = new DesktopAcrylicController();
-                backdropController.AddSystemBackdropTarget(this.As<Microsoft.UI.Composition.ICompositionSupportsSystemBackdrop>());
-                backdropController.SetSystemBackdropConfiguration(backdropConfiguration);
-                return true;
-            }
-            return false;
-        }
-
-        private async void ToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (isThemeChanging)
-                return; // Prevent duplicate toggles
-
-            isThemeChanging = true;
-            try
-            {
-                var currentTheme = GetCurrentTheme();
-                // Toggle between dark and light themes.
-                await Task.Run(async () =>
-                {
-                    SetTheme(currentTheme == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark);
-                    await Task.Delay(1000); // Short cooldown period
-                });
-                UpdateUI();
-            }
-            finally
-            {
-                isThemeChanging = false;
-            }
-        }
-
-        private void QuitButton_Click(object sender, RoutedEventArgs e)
-        {
-            timer?.Stop();
-            trayIcon.Visible = false;
-            trayIcon.Dispose();
-            Microsoft.UI.Xaml.Application.Current.Exit();
-        }
-
-        private void AutomationToggleSwitch_Toggled(object sender, RoutedEventArgs e)
-        {
-            isAutomationEnabled = ((ToggleSwitch)sender).IsOn;
-            if (isAutomationEnabled)
-            {
-                // Enable theme switching automation
-                timer.Start();
-                UpdateUI();
-                UpdateTheme();
-            }
-            else
-            {
-                // Disable theme switching automation
-                timer.Stop();
-            }
-        }
+        #endregion
     }
+
+    /// <summary>
+    /// Helper class to ensure a Windows System Dispatcher Queue Controller exists for the current thread.
+    /// </summary>
     class WindowsSystemDispatcherQueueHelper
     {
         [StructLayout(LayoutKind.Sequential)]
-        struct DispatcherQueueOptions
+        private struct DispatcherQueueOptions
         {
             internal int dwSize;
             internal int threadType;
@@ -480,23 +552,27 @@ namespace AutoThemeSwitcher
             [In] DispatcherQueueOptions options,
             [In, Out, MarshalAs(UnmanagedType.IUnknown)] ref object dispatcherQueueController);
 
-        private object? m_dispatcherQueueController;
+        private object? _dispatcherQueueController;
 
         public void EnsureWindowsSystemDispatcherQueueController()
         {
             if (Windows.System.DispatcherQueue.GetForCurrentThread() != null)
-                return;
-
-            if (m_dispatcherQueueController == null)
             {
-                DispatcherQueueOptions options;
-                options.dwSize = Marshal.SizeOf(typeof(DispatcherQueueOptions));
-                options.threadType = 2;    // Current thread
-                options.apartmentType = 2; // COM STA
+                return;
+            }
+
+            if (_dispatcherQueueController == null)
+            {
+                var options = new DispatcherQueueOptions
+                {
+                    dwSize = Marshal.SizeOf(typeof(DispatcherQueueOptions)),
+                    threadType = 2,    // Current thread
+                    apartmentType = 2  // COM STA
+                };
 
                 object dispatcherQueueController = new();
                 CreateDispatcherQueueController(options, ref dispatcherQueueController);
-                m_dispatcherQueueController = dispatcherQueueController;
+                _dispatcherQueueController = dispatcherQueueController;
             }
         }
     }

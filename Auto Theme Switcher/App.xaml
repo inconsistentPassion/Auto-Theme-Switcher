@@ -4,20 +4,20 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Auto_Theme_Switcher">
+
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
-
+            
             <Style x:Key="AccentToggleSwitchStyle" TargetType="ToggleSwitch">
-                <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}"/>
-                <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}"/>
-                <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}"/>
-                <Setter Property="BorderThickness" Value="{ThemeResource ToggleButtonBorderThemeThickness}"/>
-                <Setter Property="Padding" Value="{ThemeResource ButtonPadding}"/>
+                <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}" />
+                <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource AccentButtonBorderBrush}" />
+                <Setter Property="BorderThickness" Value="{ThemeResource ToggleButtonBorderThemeThickness}" />
+                <Setter Property="Padding" Value="{ThemeResource ButtonPadding}" />
             </Style>
-
         </ResourceDictionary>
     </Application.Resources>
 </Application>
