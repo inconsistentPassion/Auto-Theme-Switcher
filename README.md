@@ -24,7 +24,7 @@ An elegant yet simple solution for automatically switching between light and dar
 
 ## 💻 System Requirements
 
-- Windows 11 (not tested on windows 10)
+- Windows 11 (not tested on Windows 10)
 - .NET Framework 4.7.2 or higher
 - Internet (for location services)
 
