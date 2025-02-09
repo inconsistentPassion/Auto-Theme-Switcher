@@ -8,6 +8,7 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Text.Json;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,6 +16,7 @@ using Windows.ApplicationModel;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
+
 
 namespace AutoThemeSwitcher
 {
@@ -78,6 +80,10 @@ namespace AutoThemeSwitcher
 
             // Initialize theme automation (asynchronously)
             _ = InitializeThemeAutomationAsync();
+
+            _isAutomationEnabled = LoadAutomationSetting();
+            AutomationToggleSwitch.IsOn = _isAutomationEnabled;
+
 
             this.Closed += MainWindow_Closed;
         }
@@ -219,6 +225,58 @@ namespace AutoThemeSwitcher
         }
 
         #endregion
+        public class LocationData
+        {
+            public double Latitude { get; set; }
+            public double Longitude { get; set; }
+            public string Location { get; set; } = string.Empty;
+        }
+
+        // Returns the file path where location data will be stored.
+        private string GetLocationDataFilePath()
+        {
+            // For example, store the file in %APPDATA%\AutoThemeSwitcher\location.json
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AutoThemeSwitcher");
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            return Path.Combine(folder, "location.json");
+        }
+
+        // Saves the location data to disk.
+        private void SaveLocationData(LocationData data)
+        {
+            try
+            {
+                string filePath = GetLocationDataFilePath();
+                string json = JsonSerializer.Serialize(data);
+                File.WriteAllText(filePath, json);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error saving location data: " + ex.Message);
+            }
+        }
+
+        // Loads the location data from disk, if it exists.
+        private LocationData? LoadLocationData()
+        {
+            try
+            {
+                string filePath = GetLocationDataFilePath();
+                if (File.Exists(filePath))
+                {
+                    string json = File.ReadAllText(filePath);
+                    return JsonSerializer.Deserialize<LocationData>(json);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error loading location data: " + ex.Message);
+            }
+            return null;
+        }
 
         #region Event Handlers
         private void MainWindow_Closed(object sender, WindowEventArgs e)
@@ -297,6 +355,7 @@ namespace AutoThemeSwitcher
         private void AutomationToggleSwitch_Toggled(object sender, RoutedEventArgs e)
         {
             _isAutomationEnabled = ((ToggleSwitch)sender).IsOn;
+            SaveAutomationSetting(_isAutomationEnabled);
             if (_isAutomationEnabled)
             {
                 _timer.Start();
@@ -308,25 +367,41 @@ namespace AutoThemeSwitcher
                 _timer.Stop();
             }
         }
+        private void SaveAutomationSetting(bool isEnabled)
+        {
+            Microsoft.Win32.Registry.CurrentUser.CreateSubKey(@"SOFTWARE\AutoThemeSwitcher")
+                .SetValue("AutomationEnabled", isEnabled ? 1 : 0);
+        }
 
+        private bool LoadAutomationSetting()
+        {
+            var value = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\AutoThemeSwitcher")
+                ?.GetValue("AutomationEnabled");
+            return value != null && (int)value == 1;
+        }
         #endregion
 
         #region Theme and UI Update Methods
 
         private async Task GetAndCacheLocationAsync()
         {
+            double? newLatitude = null;
+            double? newLongitude = null;
+            string newLocation = string.Empty;
+            bool fetched = false;
+
             try
             {
                 var geolocator = new Geolocator();
                 var position = await geolocator.GetGeopositionAsync();
 
-                _cachedLatitude = position.Coordinate.Point.Position.Latitude;
-                _cachedLongitude = position.Coordinate.Point.Position.Longitude;
+                newLatitude = position.Coordinate.Point.Position.Latitude;
+                newLongitude = position.Coordinate.Point.Position.Longitude;
 
                 var basicPosition = new BasicGeoposition
                 {
-                    Latitude = _cachedLatitude.Value,
-                    Longitude = _cachedLongitude.Value
+                    Latitude = newLatitude.Value,
+                    Longitude = newLongitude.Value
                 };
 
                 var geopoint = new Geopoint(basicPosition);
@@ -335,18 +410,64 @@ namespace AutoThemeSwitcher
                 if (civicAddress?.Locations.Count > 0)
                 {
                     var address = civicAddress.Locations[0].Address;
-                    _location = $"{address.Town}, {address.Country}";
+                    newLocation = $"{address.Town}, {address.Country}";
                 }
                 else
                 {
-                    _location = $"({_cachedLatitude:F2}, {_cachedLongitude:F2})";
+                    newLocation = $"({newLatitude:F2}, {newLongitude:F2})";
                 }
+                fetched = true;
             }
             catch (Exception ex)
             {
-                _location = "Unknown location";
                 Debug.WriteLine($"Error fetching location: {ex.Message}");
             }
+
+            // If we couldn't fetch a new location, attempt to load stored location data.
+            if (!fetched)
+            {
+                var storedData = LoadLocationData();
+                if (storedData != null)
+                {
+                    _cachedLatitude = storedData.Latitude;
+                    _cachedLongitude = storedData.Longitude;
+                    _location = storedData.Location;
+                    Debug.WriteLine($"Using stored location data from previous instance: {_location}");
+                }
+                else
+                {
+                    _location = "Unknown location";
+                }
+                return;
+            }
+
+            // Define a threshold for detecting significant location change.
+            const double threshold = 0.001; // roughly 111 meters at the equator
+
+            // If a cached location exists, check if the new location differs significantly.
+            if (_cachedLatitude.HasValue && _cachedLongitude.HasValue)
+            {
+                if (Math.Abs(newLatitude.Value - _cachedLatitude.Value) < threshold &&
+                    Math.Abs(newLongitude.Value - _cachedLongitude.Value) < threshold)
+                {
+                    Debug.WriteLine("Location unchanged; using cached location.");
+                    return;
+                }
+            }
+
+            // Update cached values.
+            _cachedLatitude = newLatitude;
+            _cachedLongitude = newLongitude;
+            _location = newLocation;
+            Debug.WriteLine($"New location detected: {_location}");
+
+            // Persist the new location.
+            SaveLocationData(new LocationData
+            {
+                Latitude = newLatitude.Value,
+                Longitude = newLongitude.Value,
+                Location = newLocation
+            });
         }
         private async void StartupToggleSwitch_Toggled(object sender, RoutedEventArgs e)
         {
