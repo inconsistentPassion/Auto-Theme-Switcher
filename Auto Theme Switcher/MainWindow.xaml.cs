@@ -16,7 +16,6 @@ using Windows.ApplicationModel;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
-using WinRT.Interop;
 
 namespace AutoThemeSwitcher
 {
@@ -73,16 +72,7 @@ namespace AutoThemeSwitcher
             SetWindowPositionAndSize();
             TrySetMicaBackdrop();
             InitializeWindowStyle();
-            IntPtr hWnd = WindowNative.GetWindowHandle(this);
-            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
-            if (appWindow.Presenter is OverlappedPresenter presenter)
-            {
-                presenter.IsMaximizable = false;
-            }
-        
-        // Initialize automation timer (ticks every minute)
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
             _timer.Tick += Timer_Tick;
 
             // Initialize theme automation (asynchronously)
