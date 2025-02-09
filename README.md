@@ -24,9 +24,9 @@ An elegant yet simple solution for automatically switching between light and dar
 
 ## 💻 System Requirements
 
-- Windows 10 or later
+- Windows 11 (not tested on Windows 10)
 - .NET Framework 4.7.2 or higher
-- Location services (for sunrise/sunset calculations)
+- Internet (for location services)
 
 ## ⚙️ Configuration
 
