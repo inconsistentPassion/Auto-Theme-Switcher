@@ -20,7 +20,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="{ThemeResource SystemAccentColor}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+            <Border Grid.Row="0" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
                 <TextBlock x:Name="LocationTextBlock" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White"/>
             </Border>
 
@@ -91,10 +91,14 @@
                 </Border>
             </Grid>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="32">
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="-85">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Automation:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ToggleSwitch x:Name="AutomationToggleSwitch" Toggled="AutomationToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Startup:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ToggleSwitch x:Name="StartupToggleSwitch" Toggled="StartupToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>
                 </StackPanel>
                 <Button x:Name="QuitButton" Click="QuitButton_Click">
                     <StackPanel Orientation="Horizontal">

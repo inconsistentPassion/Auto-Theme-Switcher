@@ -22,6 +22,11 @@
 
   <ItemGroup>
     <Content Remove="Assets\app.png" />
+    <Content Remove="Assets\BadgeLogo.scale-100.png" />
+    <Content Remove="Assets\BadgeLogo.scale-125.png" />
+    <Content Remove="Assets\BadgeLogo.scale-150.png" />
+    <Content Remove="Assets\BadgeLogo.scale-200.png" />
+    <Content Remove="Assets\BadgeLogo.scale-400.png" />
     <Content Remove="Assets\LargeTile.scale-100.png" />
     <Content Remove="Assets\LargeTile.scale-125.png" />
     <Content Remove="Assets\LargeTile.scale-150.png" />
@@ -119,5 +124,14 @@
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <GenerateAppInstallerFile>True</GenerateAppInstallerFile>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <AppxBundle>Auto</AppxBundle>
+    <AppxBundlePlatforms>x86|x64</AppxBundlePlatforms>
+    <AppInstallerUri>https://github.com/inconsistentPassion/Auto-Theme-Switcher</AppInstallerUri>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
 </Project>

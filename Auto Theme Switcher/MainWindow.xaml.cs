@@ -1,19 +1,20 @@
-﻿using System;
+﻿using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.UI;
-using Microsoft.UI.Composition.SystemBackdrops;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using WinRT;
+using Windows.ApplicationModel;
 using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
+using WinRT;
 
 namespace AutoThemeSwitcher
 {
@@ -34,6 +35,7 @@ namespace AutoThemeSwitcher
         private DateTime _sunrise;
         private DateTime _sunset;
         private string _location = string.Empty;
+        private bool _isClosing;
 
         // Cached geolocation values
         private double? _cachedLatitude;
@@ -64,7 +66,7 @@ namespace AutoThemeSwitcher
         public MainWindow()
         {
             this.InitializeComponent();
-
+            Title = $"AutoThemes";
             InitializeTrayIcon();
             SetWindowPositionAndSize();
             TrySetMicaBackdrop();
@@ -182,6 +184,14 @@ namespace AutoThemeSwitcher
             }
         }
 
+        private async Task ConfigureStartupTaskAsync(bool enable)
+        {
+            StartupTask startupTask = await StartupTask.GetAsync("MyStartupTask");
+            if (enable)
+            {
+                StartupTaskState newState = await startupTask.RequestEnableAsync();
+            }
+        }
         private async Task InitializeThemeAutomationAsync()
         {
             await GetAndCacheLocationAsync();
@@ -211,10 +221,15 @@ namespace AutoThemeSwitcher
         #endregion
 
         #region Event Handlers
-
         private void MainWindow_Closed(object sender, WindowEventArgs e)
         {
-            // Instead of closing, hide the window.
+            if (_isClosing)
+            {
+                // Allow the window to close if we're actually exiting
+                return;
+            }
+
+            // Instead of closing, hide the window
             e.Handled = true;
             var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
@@ -272,6 +287,7 @@ namespace AutoThemeSwitcher
 
         private void QuitButton_Click(object sender, RoutedEventArgs e)
         {
+            _isClosing = true;
             _timer.Stop();
             _trayIcon.Visible = false;
             _trayIcon.Dispose();
@@ -332,7 +348,23 @@ namespace AutoThemeSwitcher
                 Debug.WriteLine($"Error fetching location: {ex.Message}");
             }
         }
+        private async void StartupToggleSwitch_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool enable = StartupToggleSwitch.IsOn;
+            StartupTask startupTask = await StartupTask.GetAsync("MyStartupTask");
 
+            if (enable)
+            {
+                StartupTaskState state = await startupTask.RequestEnableAsync();
+                Debug.WriteLine($"StartupTask state after request: {state}");
+                // If not enabled, revert the toggle switch.
+                StartupToggleSwitch.IsOn = (state == StartupTaskState.Enabled);
+            }
+            else
+            {
+                startupTask.Disable();
+            }
+        }
         private async Task UpdateSunriseSunsetTimesAsync()
         {
             try
@@ -360,7 +392,7 @@ namespace AutoThemeSwitcher
         {
             try
             {
-                DateTime localNoon = new DateTime(date.Year, date.Month, date.Day, 12, 0, 0, DateTimeKind.Local);
+                DateTime localNoon = new(date.Year, date.Month, date.Day, 12, 0, 0, DateTimeKind.Local);
                 DateTime utcNoon = localNoon.ToUniversalTime();
                 int dayOfYear = utcNoon.DayOfYear;
 
@@ -534,9 +566,30 @@ namespace AutoThemeSwitcher
         #endregion
     }
 
-    /// <summary>
-    /// Helper class to ensure a Windows System Dispatcher Queue Controller exists for the current thread.
-    /// </summary>
+    public static class WindowManagement
+    {
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
+
+        private const int SW_RESTORE = 9;
+
+        public static void BringWindowToFront(IntPtr hWnd)
+        {
+            if (IsIconic(hWnd))
+            {
+                ShowWindow(hWnd, SW_RESTORE);
+            }
+
+            SetForegroundWindow(hWnd);
+        }
+    }
+
     class WindowsSystemDispatcherQueueHelper
     {
         [StructLayout(LayoutKind.Sequential)]
@@ -554,6 +607,20 @@ namespace AutoThemeSwitcher
 
         private object? _dispatcherQueueController;
 
+        public void BringToFront()
+        {
+            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+            var appWindow = AppWindow.GetFromWindowId(windowId);
+
+            appWindow.Show();
+            WindowManagement.SetForegroundWindow(windowHandle);
+
+            if (appWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.Restore();
+            }
+        }
         public void EnsureWindowsSystemDispatcherQueueController()
         {
             if (Windows.System.DispatcherQueue.GetForCurrentThread() != null)
