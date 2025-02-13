@@ -10,8 +10,9 @@
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
-            <FontFamily x:Key="CustomFont">/Assets/Fonts/MiSans.ttf#MiSans Normal</FontFamily>
-            
+            <FontFamily x:Key="Font1">/Assets/Fonts/MiSans.ttf#MiSans Normal</FontFamily>
+            <FontFamily x:Key="Font2">/Assets/Fonts/HOSSans.ttf#Harmony OS Sans</FontFamily>
+
             <Style x:Key="AccentToggleSwitchStyle" TargetType="ToggleSwitch">
                 <Setter Property="Background" Value="{ThemeResource AccentButtonBackground}" />
                 <Setter Property="Foreground" Value="{ThemeResource AccentButtonForeground}" />

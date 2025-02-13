@@ -7,17 +7,10 @@
     xmlns:winui="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
     
-    <Window.Resources>
-        <FontFamily x:Key="CustomFont">/Assets/Fonts/MiSans.ttf#MiSans Normal</FontFamily>
-        <Style TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="{StaticResource CustomFont}"/>
-        </Style>
-    </Window.Resources>
-
-    <Grid x:Name="RootGrid">
+        <Grid x:Name="RootGrid">
         <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
             <Image Source="/Assets/app.png" Width="26" Height="26" Margin="12,0,0,0" HorizontalAlignment="Left"/>
-            <TextBlock Text="Auto Theme Switcher" VerticalAlignment="Center" Margin="48,0,0,0" Style="{StaticResource CaptionTextBlockStyle}"/>
+            <TextBlock FontFamily="{StaticResource Font1}" Text="Auto Theme Switcher" VerticalAlignment="Center" Margin="48,0,0,0" Style="{StaticResource CaptionTextBlockStyle}"/>
         </Grid>
 
         <Grid Margin="24,48,24,24">
@@ -27,8 +20,8 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
-                <TextBlock x:Name="LocationTextBlock" FontSize="24" Style="{StaticResource SubtitleTextBlockStyle}" Foreground="White"/>
+            <Border Grid.Row="0" Background="{StaticResource SystemControlBackgroundBaseLowBrush}" CornerRadius="4" Padding="12" Margin="0,0,0,12">
+                <TextBlock x:Name="LocationTextBlock" FontFamily="{StaticResource Font2}" FontSize="24" Style="{StaticResource CaptionTextBlockStyle}"/>
             </Border>
 
             <Grid Grid.Row="1" Margin="0,0,0,12">
@@ -41,7 +34,7 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Grid.Column="0" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,0,6,6">
+                <Border Grid.Row="0" Grid.Column="0" Background="{StaticResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,0,6,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -50,12 +43,12 @@
                         <TextBlock Text="🌓" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Theme Status" FontSize="12" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="ThemeStatusTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock x:Name="ThemeStatusTextBlock" FontFamily="{StaticResource Font1}" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="0" Grid.Column="1" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,0,0,6">
+                <Border Grid.Row="0" Grid.Column="1" Background="{StaticResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,0,0,6">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -63,13 +56,13 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="⏱️" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Next Switch" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="NextSwitchTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock Text="Next Switch" FontFamily="{StaticResource Font1}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
+                            <TextBlock x:Name="NextSwitchTextBlock" FontFamily="{StaticResource Font1}" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="0" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,6,6,0">
+                <Border Grid.Row="1" Grid.Column="0" Background="{StaticResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="0,6,6,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -77,13 +70,13 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="🌅" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Sunrise" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="SunriseTextBlock" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock Text="Sunrise" FontFamily="{StaticResource Font1}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
+                            <TextBlock x:Name="SunriseTextBlock" FontFamily="{StaticResource Font1}" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Grid.Row="1" Grid.Column="1" Background="{ThemeResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,6,0,0">
+                <Border Grid.Row="1" Grid.Column="1" Background="{StaticResource SystemChromeLowColor}" CornerRadius="4" Padding="16" Margin="6,6,0,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -91,8 +84,8 @@
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="🌇" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Sunset" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
-                            <TextBlock x:Name="SunsetTextBlock"  FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
+                            <TextBlock Text="Sunset" FontFamily="{StaticResource Font1}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
+                            <TextBlock x:Name="SunsetTextBlock" FontFamily="{StaticResource Font1}" FontSize="18" Style="{StaticResource BodyTextBlockStyle}" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -100,17 +93,17 @@
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="-87">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Automation:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ToggleSwitch x:Name="AutomationToggleSwitch" Toggled="AutomationToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>
+                    <TextBlock Text="Automation:" FontFamily="{StaticResource Font1}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <ToggleSwitch x:Name="AutomationToggleSwitch" Toggled="AutomationToggleSwitch_Toggled" OffContent="" OnContent="" Style="{StaticResource DefaultToggleSwitchStyle}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Startup:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ToggleSwitch x:Name="StartupToggleSwitch" Toggled="StartupToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>
+                    <ToggleSwitch x:Name="StartupToggleSwitch" FontFamily="{StaticResource Font1}" Toggled="StartupToggleSwitch_Toggled" OffContent="" OnContent="" Style="{StaticResource DefaultToggleSwitchStyle}"/>
                 </StackPanel>
                 <Button x:Name="QuitButton" Click="QuitButton_Click">
                     <StackPanel Orientation="Horizontal">
                         <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE7E8;" FontSize="13" Margin="0,0,8,0"/>
-                        <TextBlock Text="Quit"/>
+                        <TextBlock Text="Quit"  FontFamily="{StaticResource Font1}" />
                     </StackPanel>
                 </Button>
             </StackPanel>

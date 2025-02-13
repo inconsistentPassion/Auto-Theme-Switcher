@@ -17,6 +17,7 @@ using Windows.Devices.Geolocation;
 using Windows.UI.ViewManagement;
 using WinRT;
 
+
 namespace AutoThemeSwitcher
 {
     public sealed partial class MainWindow : Window
@@ -150,26 +151,37 @@ namespace AutoThemeSwitcher
             var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
             var appWindow = AppWindow.GetFromWindowId(windowId);
 
-            const int windowDimensions = 520;
-            appWindow.Resize(new Windows.Graphics.SizeInt32(windowDimensions, windowDimensions));
+            // Get DPI scaling factor
+            var dpi = GetDpiForWindow(windowHandle);
+            var scalingFactor = (float)dpi / 96.0f;
 
-            // Position the window near the bottom-right of the primary screen.
-            int screenWidth = GetSystemMetrics(0);
-            int screenHeight = GetSystemMetrics(1);
-            int taskbarHeight = 40; // Approximation
+            // Adjust window dimensions for DPI scaling
+            const int baseWindowDimensions = 520;
+            var scaledDimensions = (int)(baseWindowDimensions * scalingFactor);
 
-            appWindow.Move(new Windows.Graphics.PointInt32(
-                screenWidth - windowDimensions - 10,
-                screenHeight - windowDimensions - taskbarHeight - 30
-            ));
+            appWindow.Resize(new Windows.Graphics.SizeInt32(scaledDimensions, scaledDimensions));
 
-            // Disable resizing and remove the maximize button.
+            // Get scaled screen metrics
+            var screenWidth = GetSystemMetrics(0);
+            var screenHeight = GetSystemMetrics(1);
+            var taskbarHeight = (int)(40 * scalingFactor); // Scale taskbar height
+
+            // Calculate position accounting for scaling
+            var posX = screenWidth - scaledDimensions - (int)(10 * scalingFactor);
+            var posY = screenHeight - scaledDimensions - taskbarHeight - (int)(30 * scalingFactor);
+
+            appWindow.Move(new Windows.Graphics.PointInt32(posX, posY));
+
             if (appWindow.Presenter is OverlappedPresenter presenter)
             {
                 presenter.IsResizable = false;
                 presenter.IsMaximizable = false;
             }
         }
+
+        // Add this DPI helper method
+        [DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hwnd);
 
         private void InitializeWindowStyle()
         {
