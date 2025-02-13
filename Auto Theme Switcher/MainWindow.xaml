@@ -7,6 +7,13 @@
     xmlns:winui="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
     
+    <Window.Resources>
+        <FontFamily x:Key="CustomFont">/Assets/Fonts/MiSans.ttf#MiSans Normal</FontFamily>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource CustomFont}"/>
+        </Style>
+    </Window.Resources>
+
     <Grid x:Name="RootGrid">
         <Grid x:Name="AppTitleBar" Height="48" VerticalAlignment="Top">
             <Image Source="/Assets/app.png" Width="26" Height="26" Margin="12,0,0,0" HorizontalAlignment="Left"/>
@@ -91,7 +98,7 @@
                 </Border>
             </Grid>
 
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="-85">
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="-87">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Automation:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <ToggleSwitch x:Name="AutomationToggleSwitch" Toggled="AutomationToggleSwitch_Toggled" OffContent="" OnContent="" Style="{ThemeResource DefaultToggleSwitchStyle}"/>

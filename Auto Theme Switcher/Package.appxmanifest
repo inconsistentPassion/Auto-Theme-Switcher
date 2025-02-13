@@ -7,7 +7,16 @@
   xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
-
+<Extensions>
+  <Extension Category="windows.startupTask" EntryPoint="AutoThemeSwitcher.StartupTask">
+    <StartupTask 
+      TaskId="MyStartupTask"
+      Enabled="false"
+      DisplayName="AutoThemeSwitcher Startup"
+      Description="Starts AutoThemeSwitcher when the user logs in."
+      ShowNameOnRegistration="true" />
+  </Extension>
+</Extensions>
   <Identity
     Name="858d6b23-a706-4608-9dc0-91020a3fedd8"
     Publisher="CN=horac"

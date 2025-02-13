@@ -8,8 +8,8 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Text.Json;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Windows.ApplicationModel;
@@ -62,8 +62,6 @@ namespace AutoThemeSwitcher
             SMTO_NORMAL = 0x0,
         }
 
-        #endregion
-
         public MainWindow()
         {
             this.InitializeComponent();
@@ -81,8 +79,10 @@ namespace AutoThemeSwitcher
             _isAutomationEnabled = LoadAutomationSetting();
             AutomationToggleSwitch.IsOn = _isAutomationEnabled;
 
-
             this.Closed += MainWindow_Closed;
+
+            // Initialize Startup Task Toggle
+            _ = InitializeStartupTaskAsync();
         }
 
         #region Initialization Methods
@@ -469,18 +469,42 @@ namespace AutoThemeSwitcher
         private async void StartupToggleSwitch_Toggled(object sender, RoutedEventArgs e)
         {
             bool enable = StartupToggleSwitch.IsOn;
-            StartupTask startupTask = await StartupTask.GetAsync("MyStartupTask");
+            try
+            {
+                StartupTask startupTask = await StartupTask.GetAsync("MyStartupTask");
 
-            if (enable)
-            {
-                StartupTaskState state = await startupTask.RequestEnableAsync();
-                Debug.WriteLine($"StartupTask state after request: {state}");
-                // If not enabled, revert the toggle switch.
-                StartupToggleSwitch.IsOn = (state == StartupTaskState.Enabled);
+                switch (startupTask.State)
+                {
+                    case StartupTaskState.Disabled:
+                        if (enable)
+                        {
+                            StartupTaskState newState = await startupTask.RequestEnableAsync();
+                            StartupToggleSwitch.IsOn = (newState == StartupTaskState.Enabled);
+                            Debug.WriteLine($"StartupTask state after request: {newState}");
+                        }
+                        break;
+
+                    case StartupTaskState.Enabled:
+                        if (!enable)
+                        {
+                            startupTask.Disable();
+                            StartupToggleSwitch.IsOn = false;
+                            Debug.WriteLine("StartupTask has been disabled.");
+                        }
+                        break;
+
+                    case StartupTaskState.EnabledByPolicy:
+                    case StartupTaskState.DisabledByPolicy:
+                        // Handle policies if necessary
+                        StartupToggleSwitch.IsEnabled = false;
+                        Debug.WriteLine("StartupTask state is managed by policy and cannot be changed.");
+                        break;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                startupTask.Disable();
+                Debug.WriteLine($"Exception occurred: {ex.Message}");
+                // Optionally, inform the user about the error
             }
         }
         private async Task UpdateSunriseSunsetTimesAsync()
@@ -680,6 +704,18 @@ namespace AutoThemeSwitcher
                 titleBar.ButtonHoverForegroundColor = Colors.Black;
             }
         }
+        private async Task InitializeStartupTaskAsync()
+        {
+            try
+            {
+                StartupTask startupTask = await StartupTask.GetAsync("MyStartupTask");
+                StartupToggleSwitch.IsOn = (startupTask.State == StartupTaskState.Enabled);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to initialize startup task: {ex.Message}");
+            }
+        }
 
         #endregion
     }
@@ -762,3 +798,4 @@ namespace AutoThemeSwitcher
         }
     }
 }
+#endregion
