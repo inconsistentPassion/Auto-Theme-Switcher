@@ -1,70 +1,37 @@
-﻿using AutoThemeSwitcher;
+﻿using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Xaml.Shapes;
 using System;
-using System.Threading;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.ApplicationModel;
+using Windows.ApplicationModel.Activation;
+using Windows.Foundation;
+using Windows.Foundation.Collections;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
-
-namespace Auto_Theme_Switcher
+namespace AutoThemeSwitcher
 {
     public partial class App : Application
     {
-        private const string MutexName = "AutoThemeSwitcherSingleInstance";
-        private static Mutex? _mutex;
-        private MainWindow? _window;
+        private Window? m_window;
 
         public App()
         {
             this.InitializeComponent();
         }
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+
+        protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            bool createdNew;
-            _mutex = new Mutex(true, MutexName, out createdNew);
-
-            if (!createdNew)
-            {
-                // Another instance exists, activate it
-                ActivateExistingInstance();
-                Exit();
-                return;
-            }
-
-            _window = new MainWindow();
-            _window.Activate();
+            m_window = new MainWindow();
+            m_window.Activate();
         }
-        private void ActivateExistingInstance()
-        {
-            try
-            {
-                // Use Windows API to find and activate the existing window
-                var processes = System.Diagnostics.Process.GetProcessesByName(
-                    System.Diagnostics.Process.GetCurrentProcess().ProcessName);
-
-                foreach (var process in processes)
-                {
-                    if (process.Id != System.Diagnostics.Process.GetCurrentProcess().Id)
-                    {
-                        NativeMethods.SetForegroundWindow(process.MainWindowHandle);
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error activating existing instance: {ex.Message}");
-            }
-        }
-    }
-    internal static class NativeMethods
-    {
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        internal static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        internal static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        internal const int SW_RESTORE = 9;
     }
 }
